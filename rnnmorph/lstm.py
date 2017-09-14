@@ -20,14 +20,14 @@ class BatchGenerator:
     Генератор наборов примеров для обучения.
     """
 
-    def __init__(self, filenames: List[str], batch_size: int,
-                 input_size: int, sentence_maxlen: int, word_vocabulary: WordVocabulary,
+    def __init__(self, filenames: List[str], batch_size: int, input_size: int, word_vocabulary: WordVocabulary,
                  grammeme_vectorizer_input: GrammemeVectorizer, grammeme_vectorizer_output: GrammemeVectorizer,
-                 is_train: bool=True, val_indices: np.array=list()):
+                 sentence_len_low: int, sentence_len_high: int, is_train: bool=True, val_indices: np.array=list()):
         self.filenames = filenames  # type: List[str]
         self.batch_size = batch_size  # type: int
         self.input_size = input_size  # type: int
-        self.sentence_maxlen = sentence_maxlen  # type: int
+        self.sentence_len_low = sentence_len_low  # type: int
+        self.sentence_len_high = sentence_len_high  # type: int
         self.word_vocabulary = word_vocabulary  # type: WordVocabulary
         self.grammeme_vectorizer_input = grammeme_vectorizer_input  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
@@ -35,19 +35,16 @@ class BatchGenerator:
         self.is_train = is_train
         self.morph = pymorphy2.MorphAnalyzer()
 
-    def enable_val(self, is_val=True):
-        self.is_train = not is_val
-
     def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array]:
         n_samples = len(sentences)
-        words = np.zeros((n_samples, self.sentence_maxlen), dtype=np.int)
-        grammemes = np.zeros((n_samples, self.sentence_maxlen, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
-        y = np.zeros((n_samples, self.sentence_maxlen), dtype=np.int)
+        words = np.zeros((n_samples, self.sentence_len_high), dtype=np.int)
+        grammemes = np.zeros((n_samples, self.sentence_len_high,
+                              self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
+        y = np.zeros((n_samples, self.sentence_len_high), dtype=np.int)
         i = 0
         for sentence in sentences:
             if len(sentence) <= 1:
                 continue
-            sentence = sentence[:self.sentence_maxlen]
             texts = [x.text for x in sentence]
             word_indices, gram_vectors = self.get_sample(texts, self.morph, self.grammeme_vectorizer_input,
                                                          self.word_vocabulary, self.input_size)
@@ -88,7 +85,12 @@ class BatchGenerator:
                 for line in f:
                     line = line.strip()
                     if len(line) == 0:
-                        if self.is_train and i in self.val_indices or not self.is_train and i not in self.val_indices:
+                        last_sentence = sentences[-1]
+                        is_wrong_sentence = (self.is_train and i in self.val_indices) or \
+                                            (not self.is_train and i not in self.val_indices) or \
+                                            (len(last_sentence) < self.sentence_len_low) or \
+                                            (len(last_sentence) > self.sentence_len_high)
+                        if is_wrong_sentence:
                             sentences.pop()
                         if len(sentences) >= self.batch_size:
                             yield self.__to_tensor(sentences)
@@ -101,17 +103,18 @@ class BatchGenerator:
                         tags = "|".join(sorted(tags.strip().split("|")))
                         gram_vector_index = self.grammeme_vectorizer_output.get_index_by_name(pos + "#" + tags)
                         sentences[-1].append(WordForm(lemma, gram_vector_index, word))
-                yield self.__to_tensor(sentences)
+        yield self.__to_tensor(sentences)
 
 
 class LSTMMorphoAnalysis:
     def __init__(self, input_size: int=5000, external_batch_size: int=10000, nn_batch_size: int=256,
-                 sentence_maxlen: int=50, lstm_units=128, embeddings_dimension: int=150, dense_units: int=128):
+                 sentence_len_groups: Tuple=((1, 14), (15, 25), (26, 40), (40, 50)),
+                 lstm_units=128, embeddings_dimension: int=150, dense_units: int=128):
         self.input_size = input_size  # type: int
         self.external_batch_size = external_batch_size  # type: int
         self.nn_batch_size = nn_batch_size  # type: int
-        self.sentence_maxlen = sentence_maxlen  # type: int
         self.word_vocabulary = None  # type: WordVocabulary
+        self.sentence_len_groups = sentence_len_groups
         self.grammeme_vectorizer_input = None  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = None  # type: GrammemeVectorizer
         self.lstm_units = lstm_units  # type: int
@@ -190,7 +193,25 @@ class LSTMMorphoAnalysis:
             y_list.append(y)
         return np.vstack(words_list), np.vstack(grammemes_list), np.vstack(y_list)
 
-    def train(self, filenames: List[str], save_path: str, dump_model_freq: int = 1, val_part: float=0.33) -> None:
+    def train(self, filenames: List[str], save_path: str, dump_model_freq: int = 1,
+              val_part: float=0.33, random_seed: int=42) -> None:
+        np.random.seed(random_seed)
+        sample_counter = self.count_samples(filenames)
+        val_idx = self.get_val_indices(sample_counter, val_part)
+        for big_epoch in range(0, 1000):
+            print('------------Big Epoch {}------------'.format(big_epoch))
+            for sentence_len_low, sentence_len_high in self.sentence_len_groups:
+                batch_generator = self.get_batch_generator(filenames, sentence_len_low,
+                                                           sentence_len_high, is_train=True, val_idx=val_idx)
+                for epoch, (words, grammemes, y) in enumerate(batch_generator):
+                    self.model.fit([words, grammemes], y, batch_size=self.nn_batch_size, epochs=2, verbose=2)
+                    if epoch != 0 and epoch % dump_model_freq == 0:
+                        self.model.save(save_path)
+
+            self.evaluate(filenames, val_idx)
+
+    @staticmethod
+    def count_samples(filenames: List[str]):
         sample_counter = 0
         for filename in filenames:
             with open(filename, encoding='utf-8') as f:
@@ -198,55 +219,54 @@ class LSTMMorphoAnalysis:
                     line = line.strip()
                     if len(line) == 0:
                         sample_counter += 1
-        np.random.seed(42)
+        return sample_counter
+
+    @staticmethod
+    def get_val_indices(sample_counter: int, val_part: float):
         perm = np.random.permutation(sample_counter)
         val_idx = perm[int(sample_counter * (1 - val_part)):]
+        return val_idx
 
-        batch_generator = BatchGenerator(filenames,
-                                         batch_size=self.external_batch_size,
-                                         grammeme_vectorizer_input=self.grammeme_vectorizer_input,
-                                         grammeme_vectorizer_output=self.grammeme_vectorizer_output,
-                                         word_vocabulary=self.word_vocabulary,
-                                         input_size=self.input_size,
-                                         sentence_maxlen=self.sentence_maxlen,
-                                         is_train=True,
-                                         val_indices=val_idx)
+    def get_batch_generator(self, filenames: List[str], sentence_len_low: int, sentence_len_high: int,
+                            is_train: bool, val_idx: np.array):
+        return BatchGenerator(filenames,
+                              batch_size=self.external_batch_size,
+                              grammeme_vectorizer_input=self.grammeme_vectorizer_input,
+                              grammeme_vectorizer_output=self.grammeme_vectorizer_output,
+                              word_vocabulary=self.word_vocabulary,
+                              input_size=self.input_size,
+                              sentence_len_low=sentence_len_low,
+                              sentence_len_high=sentence_len_high,
+                              is_train=is_train,
+                              val_indices=val_idx)
 
-        for big_epoch in range(0, 1000):
-            print('------------Big Epoch {}------------'.format(big_epoch))
-            batch_generator.enable_val(False)
-            for epoch, (words, grammemes, y) in enumerate(batch_generator):
-                self.model.fit([words, grammemes], y, batch_size=self.nn_batch_size, epochs=1, verbose=2)
-                if epoch != 0 and epoch % dump_model_freq == 0:
-                    self.model.save(save_path)
-
-            self.evaluate(batch_generator)
-
-    def evaluate(self, batch_generator):
+    def evaluate(self, filenames, val_idx):
         word_count = 0
         word_errors = 0
         sentence_count = 0
         sentence_errors = 0
-        batch_generator.enable_val(True)
-        for epoch, (words, grammemes, y) in enumerate(batch_generator):
-            predicted_y = self.model.predict([words, grammemes], batch_size=self.nn_batch_size, verbose=0)
-            for i, sentence in enumerate(y):
-                sentence_has_errors = False
-                count_zero = sum([1 for num in sentence if num == [0]])
-                real_sentence_tags = sentence[count_zero:]
-                answer = []
-                for grammeme_probs in predicted_y[i][count_zero:]:
-                    num = np.argmax(grammeme_probs)
-                    answer.append(num)
-                for tag, predicted_tag in zip(real_sentence_tags, answer):
-                    tag = tag[0]
-                    word_count += 1
-                    if tag != predicted_tag:
-                        word_errors += 1
-                        sentence_has_errors = True
-                sentence_count += 1
-                if sentence_has_errors:
-                    sentence_errors += 1
+        for sentence_len_low, sentence_len_high in self.sentence_len_groups:
+            batch_generator = self.get_batch_generator(filenames, sentence_len_low,
+                                                       sentence_len_high, is_train=False, val_idx=val_idx)
+            for epoch, (words, grammemes, y) in enumerate(batch_generator):
+                predicted_y = self.model.predict([words, grammemes], batch_size=self.nn_batch_size, verbose=0)
+                for i, sentence in enumerate(y):
+                    sentence_has_errors = False
+                    count_zero = sum([1 for num in sentence if num == [0]])
+                    real_sentence_tags = sentence[count_zero:]
+                    answer = []
+                    for grammeme_probs in predicted_y[i][count_zero:]:
+                        num = np.argmax(grammeme_probs)
+                        answer.append(num)
+                    for tag, predicted_tag in zip(real_sentence_tags, answer):
+                        tag = tag[0]
+                        word_count += 1
+                        if tag != predicted_tag:
+                            word_errors += 1
+                            sentence_has_errors = True
+                    sentence_count += 1
+                    if sentence_has_errors:
+                        sentence_errors += 1
 
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
@@ -254,8 +274,8 @@ class LSTMMorphoAnalysis:
     def predict(self, sentence: List[str]):
         word_indices, gram_vectors = BatchGenerator.get_sample(sentence, self.morph, self.grammeme_vectorizer_input,
                                                                self.word_vocabulary, self.input_size)
-        words = np.zeros((1, self.sentence_maxlen), dtype=np.int)
-        grammemes = np.zeros((1, self.sentence_maxlen, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
+        words = np.zeros((1, len(sentence)), dtype=np.int)
+        grammemes = np.zeros((1, len(sentence), self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
         words[0, -len(sentence):] = word_indices
         grammemes[0, -len(sentence):] = gram_vectors
         answer = []
