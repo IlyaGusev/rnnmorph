@@ -3,11 +3,13 @@ from typing import List, Tuple
 
 from rnnmorph.lstm import LSTMMorphoAnalysis
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 
 def train(filenames: List[str], model_path: str, word_dict_path: str, gramm_dict_input: str, gramm_dict_output: str,
           rewrite_model: bool=False, input_size: int=5000, external_batch_size: int=20000, nn_batch_size: int=256,
           sentence_len_groups: Tuple = ((1, 6), (7, 14), (15, 25), (26, 40), (40, 50)), lstm_units=128,
-          embeddings_dimension: int=150, dense_units: int=128):
+          embeddings_dimension: int=150, dense_units: int=128, val_part: float=0.1):
     lstm = LSTMMorphoAnalysis(input_size=input_size,
                               external_batch_size=external_batch_size,
                               nn_batch_size=nn_batch_size,
@@ -20,7 +22,8 @@ def train(filenames: List[str], model_path: str, word_dict_path: str, gramm_dict
         lstm.load(model_path)
     else:
         lstm.build()
-    lstm.train(filenames, model_path)
+    print(lstm.model.summary())
+    lstm.train(filenames, model_path, val_part=val_part)
 
 
 if __name__ == "__main__":
@@ -29,4 +32,4 @@ if __name__ == "__main__":
     dir_name = "/media/data/Datasets/Morpho/clean"
     filenames = [os.path.join(dir_name, filename) for filename in os.listdir(dir_name)]
     train(filenames,  RU_MORPH_DEFAULT_MODEL, RU_MORPH_WORD_VOCAB_DUMP,
-          RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT)
+          RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT, nn_batch_size=256)

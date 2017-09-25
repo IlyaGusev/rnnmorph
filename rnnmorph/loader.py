@@ -5,7 +5,7 @@ from russian_tagsets import converters
 
 from rnnmorph.data.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data.word_vocabulary import WordVocabulary
-from rnnmorph.utils.tqdm_open import tqdm_open
+from rnnmorph.util.tqdm_open import tqdm_open
 
 
 def process_tag(to_ud, tag, text):

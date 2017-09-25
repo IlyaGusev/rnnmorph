@@ -1,6 +1,6 @@
 class UDConverter:
     @staticmethod
-    def convert_from_conllu(input_filename, output_filename, with_forth_column=False):
+    def convert_from_conllu(input_filename, output_filename, with_forth_column=False, with_punct=True):
         with open(input_filename, "r") as r:
             with open(output_filename, "w") as w:
                 for line in r:
@@ -16,7 +16,8 @@ class UDConverter:
                         grammems = [grammem for grammem in grammems if sum([drop in grammem for drop in dropped ]) == 0]
                         grammems = "|".join(grammems)
                         pos = records[3]
-                        if pos != "PUNCT":
-                            w.write("\t".join([records[1], records[2].lower(), pos, grammems]) + "\n")
+                        if pos == "PUNCT" and not with_punct:
+                            continue
+                        w.write("\t".join([records[1], records[2].lower(), pos, grammems]) + "\n")
                     else:
                         w.write("\n")
