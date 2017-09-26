@@ -1,14 +1,14 @@
 from itertools import islice
 from typing import List, Tuple
+import logging
 
 import numpy as np
 import pymorphy2
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
-    concatenate, Bidirectional, TimeDistributed, Dropout, Lambda
+    concatenate, Bidirectional, TimeDistributed, Dropout
 from keras.models import Model, load_model
 from keras.optimizers import Adam
 from russian_tagsets import converters
-from keras import backend as K
 
 from rnnmorph.data.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data.word_form import WordForm
@@ -16,7 +16,7 @@ from rnnmorph.loader import WordVocabulary, Loader, process_tag
 from rnnmorph.util.tqdm_open import tqdm_open
 
 CHAR_SET = " абвгдеёжзийклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ" \
-                   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\""
+           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\""
 
 
 class BatchGenerator:
@@ -26,7 +26,8 @@ class BatchGenerator:
 
     def __init__(self, filenames: List[str], batch_size: int, input_size: int, word_vocabulary: WordVocabulary,
                  grammeme_vectorizer_input: GrammemeVectorizer, grammeme_vectorizer_output: GrammemeVectorizer,
-                 sentence_len_low: int, sentence_len_high: int, is_train: bool=True, val_indices: np.array=list()):
+                 sentence_len_low: int, sentence_len_high: int, max_word_len: int,
+                 is_train: bool=True, val_indices: np.array=list()):
         self.filenames = filenames  # type: List[str]
         self.batch_size = batch_size  # type: int
         self.input_size = input_size  # type: int
@@ -37,7 +38,7 @@ class BatchGenerator:
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
         self.val_indices = set(list(val_indices))
         self.is_train = is_train
-        self.max_word_len = 40
+        self.max_word_len = max_word_len
         self.morph = pymorphy2.MorphAnalyzer()
 
     def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array, np.array]:
@@ -130,9 +131,10 @@ class BatchGenerator:
 
 
 class LSTMMorphoAnalysis:
-    def __init__(self, input_size: int=5000, external_batch_size: int=10000, nn_batch_size: int=256,
+    def __init__(self, input_size: int=5000, external_batch_size: int=3000, nn_batch_size: int=256,
                  sentence_len_groups: Tuple=((1, 14), (15, 25), (26, 40), (40, 50)),
-                 lstm_units=128, embeddings_dimension: int=150, dense_units: int=128):
+                 lstm_units=128, embeddings_dimension: int=150, dense_units: int=128, max_word_len: int=30,
+                 char_embeddings_dimension: int=20, char_lstm_output_dim: int=64):
         self.input_size = input_size  # type: int
         self.external_batch_size = external_batch_size  # type: int
         self.nn_batch_size = nn_batch_size  # type: int
@@ -144,8 +146,9 @@ class LSTMMorphoAnalysis:
         self.embeddings_dimension = embeddings_dimension  # type: int
         self.dense_units = dense_units  # type: int
         self.model = None  # type: Model
-        self.max_word_len = 40
-        self.char_embeddings_dimension = 5
+        self.max_word_len = max_word_len
+        self.char_embeddings_dimension = char_embeddings_dimension
+        self.char_lstm_output_dim = char_lstm_output_dim
         self.morph = pymorphy2.MorphAnalyzer()
 
     def prepare(self, word_vocab_dump_path: str, gram_dump_path_input: str,
@@ -186,15 +189,13 @@ class LSTMMorphoAnalysis:
         grammemes = Input(shape=(None, self.grammeme_vectorizer_input.grammemes_count()), name='grammemes')
 
         # Вход символов
-        def concat_embeddings(x):
-            x = K.concatenate(tuple([x[:, :, i] for i in range(x.shape[2])]))
-            return x
         chars = Input(shape=(None, self.max_word_len), name='chars')
         chars_embedding = Embedding(len(CHAR_SET) + 1, self.char_embeddings_dimension, name='char_embeddings')(chars)
-        chars_embedding = Lambda(concat_embeddings,
-                                 output_shape=(None, self.max_word_len*self.char_embeddings_dimension))(chars_embedding)
+        chars_lstm = TimeDistributed(Bidirectional(
+            LSTM(self.char_lstm_output_dim // 2, dropout=.2, recurrent_dropout=.2,
+                 return_sequences=False, name='CharLSTM')))(chars_embedding)
 
-        layer = concatenate([words_embedding, grammemes, chars_embedding], name="LSTM_input")
+        layer = concatenate([words_embedding, grammemes, chars_lstm], name="LSTM_input")
         layer = Bidirectional(LSTM(self.lstm_units, dropout=.2, recurrent_dropout=.2,
                                    return_sequences=True, name='LSTM_1'))(layer)
         layer = Bidirectional(LSTM(self.lstm_units, dropout=.2, recurrent_dropout=.2,
@@ -229,7 +230,7 @@ class LSTMMorphoAnalysis:
         np.random.seed(random_seed)
         sample_counter = self.count_samples(filenames)
         val_idx = self.get_val_indices(sample_counter, val_part)
-        for big_epoch in range(0, 1000):
+        for big_epoch in range(0, 40):
             print('------------Big Epoch {}------------'.format(big_epoch))
             for sentence_len_low, sentence_len_high in self.sentence_len_groups:
                 batch_generator = self.get_batch_generator(filenames, sentence_len_low,
@@ -268,6 +269,7 @@ class LSTMMorphoAnalysis:
                               input_size=self.input_size,
                               sentence_len_low=sentence_len_low,
                               sentence_len_high=sentence_len_high,
+                              max_word_len=self.max_word_len,
                               is_train=is_train,
                               val_indices=val_idx)
 
