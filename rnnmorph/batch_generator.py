@@ -152,4 +152,6 @@ class BatchGenerator:
                         word, lemma = word.lower(), lemma.lower() + '_' + pos
                         gram_vector_index = self.grammeme_vectorizer_output.get_index_by_name(pos + "#" + tags)
                         sentences[-1].append(WordForm(lemma, gram_vector_index, word))
+        if len(sentences[-1]) == 0:
+            sentences.pop()
         yield self.__to_tensor(sentences)
