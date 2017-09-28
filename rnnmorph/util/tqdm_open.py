@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Авторы: Анастасьев Даниил
-# Описание: Обертка открытия больших файлов в счетчик tqdm
+# Описание: Обертка открытия больших файлов в счетчик tqdm.
 
 from contextlib import contextmanager
 from os.path import getsize, basename

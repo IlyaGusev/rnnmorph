@@ -2,26 +2,26 @@
 # Авторы: Гусев Илья, Анастасьев Даниил
 # Описание: Модуль векторизатора граммем.
 
-import pickle
+import jsonpickle
 import os
 from collections import defaultdict
 from typing import Dict, List, Set
 
-from rupo.settings import GENERATOR_GRAM_VECTORS
-from rupo.generate.tqdm_open import tqdm_open
+from rnnmorph.util.tqdm_open import tqdm_open
+from rnnmorph.data_preparation.process_tag import process_gram_tag
 
 
 def get_empty_category():
     return {GrammemeVectorizer.UNKNOWN_VALUE}
 
 
-class GrammemeVectorizer:
+class GrammemeVectorizer(object):
     """
     Класс, который собирает возможные грамматические значения по корпусу и на их основе строит грамматические вектора.
     """
     UNKNOWN_VALUE = "Unknown"
 
-    def __init__(self, dump_filename: str=GENERATOR_GRAM_VECTORS, dropped=("Animacy", "Aspect", "NumType")):
+    def __init__(self, dump_filename: str):
         """
         :param dump_filename: путь к дампу.
         """
@@ -29,18 +29,8 @@ class GrammemeVectorizer:
         self.vectors = []  # type: List[List[int]]
         self.name_to_index = {}  # type: Dict[str, int]
         self.dump_filename = dump_filename  # type: str
-        self.dropped = dropped
         if os.path.exists(self.dump_filename):
             self.load()
-
-    def save(self) -> None:
-        with open(self.dump_filename, "wb") as f:
-            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
-
-    def load(self):
-        with open(self.dump_filename, "rb") as f:
-            vectorizer = pickle.load(f)
-            self.__dict__.update(vectorizer.__dict__)
 
     def collect_grammemes(self, filename: str) -> None:
         """
@@ -56,18 +46,17 @@ class GrammemeVectorizer:
                 pos_tag, grammemes = line.split("\t")[2:4]
                 self.add_grammemes(pos_tag, grammemes)
 
-    def add_grammemes(self, pos_tag: str, grammemes: str) -> int:
+    def add_grammemes(self, pos_tag: str, gram: str) -> int:
         """
         Добавить новое грамматическое значение в список известных
         """
-        grammemes = "|".join(sorted([grammem for grammem in grammemes.strip().split("|")
-                                     if sum([drop in grammem for drop in self.dropped]) == 0]))
-        vector_name = pos_tag + '#' + grammemes
+        gram = process_gram_tag(gram)
+        vector_name = pos_tag + '#' + gram
         if vector_name not in self.name_to_index:
             self.name_to_index[vector_name] = len(self.name_to_index)
             self.all_grammemes["POS"].add(pos_tag)
-            grammemes = grammemes.split("|") if grammemes != "_" else []
-            for grammeme in grammemes:
+            gram = gram.split("|") if gram != "_" else []
+            for grammeme in gram:
                 category = grammeme.split("=")[0]
                 value = grammeme.split("=")[1]
                 self.all_grammemes[category].add(value)
@@ -132,10 +121,8 @@ class GrammemeVectorizer:
 
     def get_index_by_name(self, name):
         pos = name.split("#")[0]
-        grammemes = name.split("#")[1]
-        grammemes = "|".join(sorted([grammem for grammem in grammemes.strip().split("|")
-                                     if sum([drop in grammem for drop in self.dropped]) == 0]))
-        return self.name_to_index[pos + "#" + grammemes]
+        gram = process_gram_tag(name.split("#")[1])
+        return self.name_to_index[pos + "#" + gram]
 
     def __build_vector(self, pos_tag: str, grammemes: List[str]) -> List[int]:
         """
@@ -155,3 +142,12 @@ class GrammemeVectorizer:
             else:
                 vector += [1 if value == gram_tags[category] else 0 for value in sorted(list(values))]
         return vector
+
+    def save(self) -> None:
+        with open(self.dump_filename, "w") as f:
+            f.write(jsonpickle.encode(self, f))
+
+    def load(self):
+        with open(self.dump_filename, "r") as f:
+            vectorizer = jsonpickle.decode(f.read())
+            self.__dict__.update(vectorizer.__dict__)

@@ -1,19 +1,22 @@
+# -*- coding: utf-8 -*-
+# Автор: Гусев Илья
+# Описание: Запуск предсказания для жанровых выборок.
+
 import logging
+import os
 import sys
-import string
 
 import pymorphy2
 from russian_tagsets import converters
 
-import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 from rnnmorph.predictor import MorphPredictor
 from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL, RU_MORPH_WORD_VOCAB_DUMP, \
     RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT
 from rnnmorph.util.timeit import timeit
-from rnnmorph.loader import process_tag
+from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 
 
 @timeit
@@ -44,7 +47,8 @@ def tag(predictor, untagged_filename, tagged_filename):
                         full_lemma = ""
                         first_lemma = morph.parse(word)[0].normal_form
                         for word_form in morph.parse(word):
-                            word_form_pos_tag, word_form_gram = process_tag(to_ud, word_form.tag, word)
+                            word_form_pos_tag, word_form_gram = convert_from_opencorpora_tag(to_ud, word_form.tag, word)
+                            word_form_gram = process_gram_tag(word_form_gram)
                             if word_form_pos_tag == pos_tag:
                                 pos_lemma = word_form.normal_form
                                 if len(set(word_form_gram.split("|")).intersection(set(gram.split("|")))) == \

@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+# Автор: Гусев Илья
+# Описание: Обучение модели с определёнными параметрами.
+
 import os
 import logging
 import sys
 from typing import List, Tuple
 
-from rnnmorph.lstm import LSTMMorphoAnalysis
+from rnnmorph.model import LSTMMorphoAnalysis
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -28,7 +32,7 @@ def train(filenames: List[str], model_path: str, word_dict_path: str, gramm_dict
         lstm.load(model_path)
     else:
         lstm.build()
-    print(lstm.model.summary())
+        print(lstm.model.summary())
     lstm.train(filenames, model_path, val_part=val_part)
 
 
@@ -39,4 +43,4 @@ if __name__ == "__main__":
     dir_name = "/media/data/Datasets/Morpho/clean"
     filenames = [os.path.join(dir_name, filename) for filename in os.listdir(dir_name)]
     train(filenames,  RU_MORPH_DEFAULT_MODEL, RU_MORPH_WORD_VOCAB_DUMP,
-          RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT)
+          RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT, val_part=0.01)
