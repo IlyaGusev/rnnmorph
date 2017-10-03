@@ -224,30 +224,36 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict(self, sentence: List[str]) -> List[str]:
+    def predict(self, sentences: List[List[str]]) -> List[List[int]]:
         """
         Предсказание полных PoS-тегов по предложению.
         
-        :param sentence: предложение (массив слов).
+        :param sentences: массив предложений (которые являются массивом слов).
         :return: массив тегов.
         """
-        gram_vectors, char_vectors = BatchGenerator.get_sample(sentence, self.morph,
-                                                               self.grammeme_vectorizer_input, self.max_word_len)
+        maxlen = max([len(sentence) for sentence in sentences])
         high_border = 0
         for low, high in self.sentence_len_groups:
-            if low <= len(sentence) <= high:
+            if low <= maxlen <= high:
                 high_border = high
         if high_border == 0:
-            high_border = len(sentence)
+            high_border = maxlen
 
-        grammemes = np.zeros((1, high_border, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
-        chars = np.zeros((1, high_border, self.max_word_len), dtype=np.int)
+        n_samples = len(sentences)
+        grammemes = np.zeros((n_samples, high_border, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
+        chars = np.zeros((n_samples, high_border, self.max_word_len), dtype=np.int)
 
-        grammemes[0, -len(sentence):] = gram_vectors
-        chars[0, -len(sentence):] = char_vectors
+        for i, sentence in enumerate(sentences):
+            gram_vectors, char_vectors = BatchGenerator.get_sample(sentence, self.morph,
+                                                                   self.grammeme_vectorizer_input, self.max_word_len)
+            grammemes[i, -len(sentence):] = gram_vectors
+            chars[i, -len(sentence):] = char_vectors
 
-        answer = []
-        for grammeme_probs in self.model.predict([grammemes, chars])[0][-len(sentence):]:
-            num = np.argmax(grammeme_probs[1:])
-            answer.append(self.grammeme_vectorizer_output.get_name_by_index(num))
-        return answer
+        answers = []
+        for sentence, probs in zip(sentences, self.model.predict([grammemes, chars])):
+            answer = []
+            for grammeme_probs in probs[-len(sentence):]:
+                num = np.argmax(grammeme_probs[1:])
+                answer.append(num)
+            answers.append(answer)
+        return answers

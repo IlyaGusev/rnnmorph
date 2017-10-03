@@ -3,16 +3,24 @@
 # Описание: Предсказатель PoS-тегов.
 
 from typing import List
-from collections import namedtuple
 
 from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
 
 from rnnmorph.model import LSTMMorphoAnalysis
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
+from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
 
 
-class MorphPredictor:
+class Predictor:
+    def predict_sentence(self, words: List[str]) -> List[WordFormOut]:
+        raise NotImplementedError()
+
+    def predict_sentences(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
+        raise NotImplementedError()
+
+
+class RNNMorphPredictor(Predictor):
     def __init__(self, model_config_path: str, model_weights_path: str,
                  gramm_dict_input: str, gramm_dict_output: str):
         self.model = LSTMMorphoAnalysis()
@@ -20,15 +28,25 @@ class MorphPredictor:
         self.model.load(model_config_path, model_weights_path)
         self.morph = MorphAnalyzer()
 
-    def predict(self, words: List[str]) -> List[str]:
-        Parse = namedtuple('Parse', "word pos tag normal_form")
-        tags = self.model.predict(words)
+    def predict_sentence(self, words: List[str]) -> List[WordFormOut]:
+        return self.__compose_answer(words, self.model.predict([words])[0])
+
+    def predict_sentences(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
+        sentences_tags = self.model.predict(sentences)
+        answers = []
+        for tags, words in zip(sentences_tags, sentences):
+            answers.append(self.__compose_answer(words, tags))
+        return answers
+
+    def __compose_answer(self, words: List[str], tags: List[int]) -> List[WordFormOut]:
         forms = []
-        for i, word in enumerate(words):
-            pos_tag = tags[i].split("#")[0]
-            gram = tags[i].split("#")[1]
+        for tag_num, word in zip(tags, words):
+            vectorizer = self.model.grammeme_vectorizer_output
+            tag = vectorizer.get_name_by_index(tag_num)
+            pos_tag = tag.split("#")[0]
+            gram = tag.split("#")[1]
             lemma = self.__get_lemma(word, pos_tag, gram)
-            forms.append(Parse(word=word, pos=pos_tag, tag=gram, normal_form=lemma))
+            forms.append(WordForm(lemma=lemma, gram_vector_index=tag_num, text=word).get_out_form(vectorizer))
         return forms
 
     def __get_lemma(self, word: str, pos_tag: str, gram: str, enable_gikrya_normalization: bool=True):
