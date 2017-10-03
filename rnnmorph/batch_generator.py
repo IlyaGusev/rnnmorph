@@ -11,7 +11,6 @@ from russian_tagsets import converters
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm
-from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 from rnnmorph.util.tqdm_open import tqdm_open
 
 
@@ -24,25 +23,23 @@ class BatchGenerator:
     Генератор наборов примеров для обучения.
     """
 
-    def __init__(self, filenames: List[str], batch_size: int, input_size: int, word_vocabulary: WordVocabulary,
-                 grammeme_vectorizer_input: GrammemeVectorizer, grammeme_vectorizer_output: GrammemeVectorizer,
-                 sentence_len_low: int, sentence_len_high: int, max_word_len: int, indices: np.array):
+    def __init__(self, filenames: List[str], batch_size: int, grammeme_vectorizer_input: GrammemeVectorizer,
+                 grammeme_vectorizer_output: GrammemeVectorizer, sentence_len_low: int, sentence_len_high: int,
+                 max_word_len: int, indices: np.array):
         self.filenames = filenames  # type: List[str]
         # Праметры батча.
         self.batch_size = batch_size  # type: int
-        self.input_size = input_size  # type: int
         self.sentence_len_low = sentence_len_low  # type: int
         self.sentence_len_high = sentence_len_high  # type: int
         self.max_word_len = max_word_len  # type: int
         # Разбиение на выборки.
         self.indices = indices  # type: np.array
         # Подготовленные словари.
-        self.word_vocabulary = word_vocabulary  # type: WordVocabulary
         self.grammeme_vectorizer_input = grammeme_vectorizer_input  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
 
-    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array, np.array]:
+    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array]:
         """
         Преобразование предложений в признаки и ответы.
         
@@ -52,45 +49,38 @@ class BatchGenerator:
         n = len(sentences)
         grammemes_count = self.grammeme_vectorizer_input.grammemes_count()
 
-        words = np.zeros((n, self.sentence_len_high), dtype=np.int)
         grammemes = np.zeros((n, self.sentence_len_high, grammemes_count), dtype=np.float)
         chars = np.zeros((n, self.sentence_len_high, self.max_word_len), dtype=np.int)
         y = np.zeros((n, self.sentence_len_high), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
-            word_indices, gram_vectors, char_vectors = \
-                self.get_sample([x.text for x in sentence], self.morph, self.grammeme_vectorizer_input,
-                                self.word_vocabulary, self.input_size, self.max_word_len)
-            assert len(word_indices) == len(sentence) and \
-                   len(gram_vectors) == len(sentence) and \
+            gram_vectors, char_vectors = \
+                self.get_sample([x.text for x in sentence], self.morph,
+                                self.grammeme_vectorizer_input, self.max_word_len)
+            assert len(gram_vectors) == len(sentence) and \
                    len(char_vectors) == len(sentence)
 
-            words[i, -len(sentence):] = word_indices
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
             y[i, -len(sentence):] = [word.gram_vector_index + 1 for word in sentence]
         y = y.reshape(y.shape[0], y.shape[1], 1)
-        return words, grammemes, chars,  y
+        return grammemes, chars,  y
 
     @staticmethod
     def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
-                   grammeme_vectorizer: GrammemeVectorizer, word_vocabulary: WordVocabulary,
-                   input_size: int, max_word_len: int):
+                   grammeme_vectorizer: GrammemeVectorizer, max_word_len: int):
         """
         Получние признаков для отдельного предложения.
         
         :param sentence: предложение.
         :param morph: морфология.
         :param grammeme_vectorizer: грамматический словарь. 
-        :param word_vocabulary: словарь.
-        :param input_size: размер словаря (индекс неизвестного слова).
         :param max_word_len: количество обрабатываемых букв в слове.
         :return: индексы слов, грамматические векторы, индексы символов.
         """
         to_ud = converters.converter('opencorpora-int', 'ud14')
         word_char_vectors = []
         word_gram_vectors = []
-        word_indices = []
         for word in sentence:
             char_indices = np.zeros(max_word_len)
             gram_value_indices = np.zeros(grammeme_vectorizer.grammemes_count())
@@ -116,12 +106,7 @@ class BatchGenerator:
                 index += len(values)
             word_gram_vectors.append(gram_value_indices)
 
-            # Индексы слов.
-            word_index = word_vocabulary.word_to_index[word.lower()] if word_vocabulary.has_word(word) else input_size
-            word_index = min(word_index, input_size)
-            word_indices.append(word_index)
-
-        return word_indices, word_gram_vectors, word_char_vectors
+        return word_gram_vectors, word_char_vectors
 
     def __iter__(self):
         """

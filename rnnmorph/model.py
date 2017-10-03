@@ -8,16 +8,16 @@ import numpy as np
 import pymorphy2
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
     concatenate, Bidirectional, TimeDistributed, Dropout
-from keras.models import Model, load_model
+from keras.models import Model, model_from_yaml
 from keras.optimizers import Adam
 
 from rnnmorph.batch_generator import BatchGenerator, CHAR_SET
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
-from rnnmorph.data_preparation.loader import WordVocabulary, Loader
+from rnnmorph.data_preparation.loader import Loader
 
 
 class LSTMMorphoAnalysis:
-    def __init__(self, input_size: int=5000, external_batch_size: int=3000, nn_batch_size: int=256,
+    def __init__(self, input_size: int=1000, external_batch_size: int=3000, nn_batch_size: int=256,
                  sentence_len_groups: Tuple=((1, 14), (15, 25), (26, 40), (40, 50)),
                  lstm_units=128, embeddings_dimension: int=150, dense_units: int=128, max_word_len: int=30,
                  char_embeddings_dimension: int=20, char_lstm_output_dim: int=64, dropout: float=0.2):
@@ -50,41 +50,38 @@ class LSTMMorphoAnalysis:
 
         # Словари.
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
-        self.word_vocabulary = None  # type: WordVocabulary
         self.grammeme_vectorizer_input = None  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = None  # type: GrammemeVectorizer
 
         self.model = None  # type: Model
 
-    def prepare(self, word_vocab_dump_path: str, gram_dump_path_input: str,
-                gram_dump_path_output: str, filenames: List[str]=None) -> None:
+    def prepare(self, gram_dump_path_input: str, gram_dump_path_output: str, filenames: List[str]=None) -> None:
         """
         Подготовка векторизатора грамматических значений и словаря слов по корпусу.
         """
         self.grammeme_vectorizer_input = GrammemeVectorizer(gram_dump_path_input)
         self.grammeme_vectorizer_output = GrammemeVectorizer(gram_dump_path_output)
-        self.word_vocabulary = WordVocabulary(word_vocab_dump_path)
-        if self.grammeme_vectorizer_input.is_empty() or \
-                self.grammeme_vectorizer_output.is_empty() or \
-                self.word_vocabulary.is_empty():
-            loader = Loader(gram_dump_path_input, gram_dump_path_output, word_vocab_dump_path)
-            self.grammeme_vectorizer_input, self.grammeme_vectorizer_output, self.word_vocabulary = \
-                loader.parse_corpora(filenames)
+        if self.grammeme_vectorizer_input.is_empty() or self.grammeme_vectorizer_output.is_empty():
+            loader = Loader(gram_dump_path_input, gram_dump_path_output)
+            self.grammeme_vectorizer_input, self.grammeme_vectorizer_output = loader.parse_corpora(filenames)
             self.grammeme_vectorizer_input.save()
             self.grammeme_vectorizer_output.save()
-            self.word_vocabulary.save()
 
-    def load(self, model_filename: str) -> None:
-        self.model = load_model(model_filename)
+    def save(self, model_config_path: str, model_weights_path: str):
+        with open(model_config_path, "w") as f:
+            f.write(self.model.to_yaml())
+        self.model.save_weights(model_weights_path)
+
+    def load(self, model_config_path: str, model_weights_path: str) -> None:
+        with open(model_config_path, "r") as f:
+            self.model = model_from_yaml(f.read())
+        self.model.load_weights(model_weights_path)
+        self.model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
     def build(self):
         """
         Описание модели.
         """
-        # Вход лемм
-        words = Input(shape=(None,), name='words')
-        words_embedding = Embedding(self.input_size + 1, self.embeddings_dimension, name='word_embeddings')(words)
-
         # Вход граммем
         grammemes = Input(shape=(None, self.grammeme_vectorizer_input.grammemes_count()), name='grammemes')
 
@@ -95,7 +92,7 @@ class LSTMMorphoAnalysis:
             LSTM(self.char_lstm_output_dim // 2, dropout=self.dropout, recurrent_dropout=self.dropout,
                  return_sequences=False, name='CharLSTM')))(chars_embedding)
 
-        layer = concatenate([words_embedding, grammemes, chars_lstm], name="LSTM_input")
+        layer = concatenate([grammemes, chars_lstm], name="LSTM_input")
         layer = Bidirectional(LSTM(self.lstm_units, dropout=self.dropout, recurrent_dropout=self.dropout,
                                    return_sequences=True, name='LSTM_1'))(layer)
         layer = Bidirectional(LSTM(self.lstm_units, dropout=self.dropout, recurrent_dropout=self.dropout,
@@ -108,18 +105,19 @@ class LSTMMorphoAnalysis:
 
         output = TimeDistributed(Dense(self.grammeme_vectorizer_output.size() + 1, activation='softmax'))(layer)
 
-        self.model = Model(inputs=[words, grammemes, chars], outputs=[output])
+        self.model = Model(inputs=[grammemes, chars], outputs=[output])
 
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
         print(self.model.summary())
 
-    def train(self, filenames: List[str], save_path: str, dump_model_freq: int=1,
-              val_part: float=0.33, random_seed: int=42) -> None:
+    def train(self, filenames: List[str], model_config_path: str, model_weights_path: str, dump_model_freq: int=1,
+              val_part: float=0.33, random_seed: int=42, epochs_num: int=20) -> None:
         """
         Обучение модели.
         
         :param filenames: файлы с морфоразметкой.
-        :param save_path: путь, куда сохранять модель.
+        :param model_weights_path: путь, куда сохранять веса модели.
+        :param model_config_path: путь, куда сохранять архитектуру модели.
         :param dump_model_freq: насколько часто сохранять модель (1 = каждый батч).
         :param val_part: на какой части выборки оценивать качество.
         :param random_seed: зерно для случайного генератора.
@@ -127,14 +125,14 @@ class LSTMMorphoAnalysis:
         np.random.seed(random_seed)
         sample_counter = self.count_samples(filenames)
         train_idx, val_idx = self.get_split(sample_counter, val_part)
-        for big_epoch in range(0, 40):
+        for big_epoch in range(epochs_num):
             print('------------Big Epoch {}------------'.format(big_epoch))
             for sentence_len_low, sentence_len_high in self.sentence_len_groups:
                 batch_generator = self.get_batch_generator(filenames, sentence_len_low, sentence_len_high, train_idx)
-                for epoch, (words, grammemes, chars, y) in enumerate(batch_generator):
-                    self.model.fit([words, grammemes, chars], y, batch_size=self.nn_batch_size, epochs=1, verbose=2)
+                for epoch, (grammemes, chars, y) in enumerate(batch_generator):
+                    self.model.fit([grammemes, chars], y, batch_size=self.nn_batch_size, epochs=1, verbose=2)
                     if epoch != 0 and epoch % dump_model_freq == 0:
-                        self.model.save(save_path)
+                        self.save(model_config_path, model_weights_path)
 
             self.evaluate(filenames, val_idx)
 
@@ -185,8 +183,6 @@ class LSTMMorphoAnalysis:
                               batch_size=self.external_batch_size,
                               grammeme_vectorizer_input=self.grammeme_vectorizer_input,
                               grammeme_vectorizer_output=self.grammeme_vectorizer_output,
-                              word_vocabulary=self.word_vocabulary,
-                              input_size=self.input_size,
                               sentence_len_low=sentence_len_low,
                               sentence_len_high=sentence_len_high,
                               max_word_len=self.max_word_len,
@@ -205,8 +201,8 @@ class LSTMMorphoAnalysis:
         sentence_errors = 0
         for sentence_len_low, sentence_len_high in self.sentence_len_groups:
             batch_generator = self.get_batch_generator(filenames, sentence_len_low, sentence_len_high, val_idx)
-            for epoch, (words, grammemes, chars, y) in enumerate(batch_generator):
-                predicted_y = self.model.predict([words, grammemes, chars], batch_size=self.nn_batch_size, verbose=0)
+            for epoch, (grammemes, chars, y) in enumerate(batch_generator):
+                predicted_y = self.model.predict([grammemes, chars], batch_size=self.nn_batch_size, verbose=0)
                 for i, sentence in enumerate(y):
                     sentence_has_errors = False
                     count_zero = sum([1 for num in sentence if num == [0]])
@@ -235,9 +231,8 @@ class LSTMMorphoAnalysis:
         :param sentence: предложение (массив слов).
         :return: массив тегов.
         """
-        word_indices, gram_vectors, char_vectors = \
-            BatchGenerator.get_sample(sentence, self.morph, self.grammeme_vectorizer_input,
-                                      self.word_vocabulary, self.input_size, self.max_word_len)
+        gram_vectors, char_vectors = BatchGenerator.get_sample(sentence, self.morph,
+                                                               self.grammeme_vectorizer_input, self.max_word_len)
         high_border = 0
         for low, high in self.sentence_len_groups:
             if low <= len(sentence) <= high:
@@ -245,16 +240,14 @@ class LSTMMorphoAnalysis:
         if high_border == 0:
             high_border = len(sentence)
 
-        words = np.zeros((1, high_border), dtype=np.int)
         grammemes = np.zeros((1, high_border, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
         chars = np.zeros((1, high_border, self.max_word_len), dtype=np.int)
 
-        words[0, -len(sentence):] = word_indices
         grammemes[0, -len(sentence):] = gram_vectors
         chars[0, -len(sentence):] = char_vectors
 
         answer = []
-        for grammeme_probs in self.model.predict([words, grammemes, chars])[0][-len(sentence):]:
+        for grammeme_probs in self.model.predict([grammemes, chars])[0][-len(sentence):]:
             num = np.argmax(grammeme_probs[1:])
             answer.append(self.grammeme_vectorizer_output.get_name_by_index(num))
         return answer

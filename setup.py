@@ -18,7 +18,8 @@ setup(
         'keras==2.0.5',
         'pymorphy2>=0.8',
         'russian-tagsets==0.6',
-        'tqdm>=4.14.0'
+        'tqdm>=4.14.0',
+        'jsonpickle>=0.9.4'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

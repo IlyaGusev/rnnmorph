@@ -101,5 +101,4 @@ ENV/
 .mypy_cache/
 
 *.pickle
-*.h5
 *.idea
