@@ -10,6 +10,8 @@ from russian_tagsets import converters
 from rnnmorph.model import LSTMMorphoAnalysis
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
+from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, \
+    RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT
 
 
 class Predictor:
@@ -21,8 +23,10 @@ class Predictor:
 
 
 class RNNMorphPredictor(Predictor):
-    def __init__(self, model_config_path: str, model_weights_path: str,
-                 gramm_dict_input: str, gramm_dict_output: str):
+    def __init__(self, model_config_path: str=RU_MORPH_DEFAULT_MODEL_CONFIG,
+                 model_weights_path: str=RU_MORPH_DEFAULT_MODEL_WEIGHTS,
+                 gramm_dict_input: str=RU_MORPH_GRAMMEMES_DICT,
+                 gramm_dict_output: str=RU_MORPH_GRAMMEMES_DICT_OUTPUT):
         self.model = LSTMMorphoAnalysis()
         self.model.prepare(gramm_dict_input, gramm_dict_output)
         self.model.load(model_config_path, model_weights_path)
