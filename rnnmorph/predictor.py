@@ -13,10 +13,10 @@ from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
 
 
 class Predictor:
-    def predict_sentence(self, words: List[str]) -> List[WordFormOut]:
+    def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
         raise NotImplementedError()
 
-    def predict_sentences(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
+    def predict_sentences_tags(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
         raise NotImplementedError()
 
 
@@ -28,10 +28,10 @@ class RNNMorphPredictor(Predictor):
         self.model.load(model_config_path, model_weights_path)
         self.morph = MorphAnalyzer()
 
-    def predict_sentence(self, words: List[str]) -> List[WordFormOut]:
+    def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
         return self.__compose_answer(words, self.model.predict([words])[0])
 
-    def predict_sentences(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
+    def predict_sentences_tags(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
         sentences_tags = self.model.predict(sentences)
         answers = []
         for tags, words in zip(sentences_tags, sentences):

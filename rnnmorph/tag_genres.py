@@ -26,7 +26,7 @@ def tag(predictor, untagged_filename, tagged_filename):
                     pos.append(len(words))
                     words.append(word)
                 else:
-                    forms = predictor.predict_sentence([word.lower() for word in words])
+                    forms = predictor.predict_sentence_tags([word.lower() for word in words])
                     for i, form in enumerate(forms):
                         w.write(str(i+1) + "\t" + form.word + "\t" + form.normal_form + "\t" + form.pos + "\t" + form.tag + "\n")
                     words = []

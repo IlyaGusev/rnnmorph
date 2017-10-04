@@ -16,13 +16,13 @@ class TestLSTMMorph(unittest.TestCase):
         self.assertEqual(parse.tag, tag)
 
     def test_sentence_analysis1(self):
-        forms = self.predictor.predict_sentence(["косил", "косой", "косой", "косой"])
+        forms = self.predictor.predict_sentence_tags(["косил", "косой", "косой", "косой"])
         self.__asert_parse(forms[0], 'VERB', 'косить',
                            'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.__asert_parse(forms[3], 'NOUN', 'коса', 'Case=Ins|Gender=Fem|Number=Sing')
 
     def test_sentence_analysis2(self):
-        forms = self.predictor.predict_sentence(["мама", "мыла", "раму"])
+        forms = self.predictor.predict_sentence_tags(["мама", "мыла", "раму"])
         self.__asert_parse(forms[0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
         self.__asert_parse(forms[1], 'VERB', 'мыть',
                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
