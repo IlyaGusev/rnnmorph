@@ -1,6 +1,7 @@
 # rnnmorph
 [![Current version on PyPI](http://img.shields.io/pypi/v/rnnmorph.svg)](https://pypi.python.org/pypi/rnnmorph)
 [![Python versions](https://img.shields.io/pypi/pyversions/rnnmorph.svg)](https://pypi.python.org/pypi/rnnmorph)
+[![Build Status](https://travis-ci.org/IlyaGusev/rnnmorph.svg?branch=master)](https://travis-ci.org/IlyaGusev/rnnmorph)
 [![Code Climate](https://codeclimate.com/github/IlyaGusev/rnnmorph/badges/gpa.svg)](https://codeclimate.com/github/IlyaGusev/rnnmorph)
 
 Морфологический анализатор на основе нейронных сетей и pymorphy2.
@@ -29,9 +30,28 @@ JZ:
   * 3655 слов из 4042, точность 90.43%
   * 169 предложений из 394, точность 42.89%
 
+### Install ###
+```
+sudo pip3 install rnnmorph
+```
+  
+### Usage ###
+```
+>>> from rnnmorph.predictor import RNNMorphPredictor
+>>> engine = Engine(language="ru")
+>>> forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
+>>> print(forms[0].pos)
+NOUN
+>>> print(forms[0].tag)
+Case=Nom|Gender=Fem|Number=Sing
+>>> print(forms[0].normal_form)
+мама
+```
 
-### На основе: ###
+### Acknowledgements ###
 * Anastasyev D. G., Andrianov A. I., Indenbom E. M., 2017, [Part-of-speech Tagging with Rich Language Description](http://www.dialog-21.ru/media/3895/anastasyevdgetal.pdf), [презентация](http://www.dialog-21.ru/media/4102/anastasyev.pdf)
 * [Дорожка по морфологическому анализу "Диалога-2017"](http://www.dialog-21.ru/evaluation/2017/morphology/)
 * [Материалы дорожки](https://github.com/dialogue-evaluation/morphoRuEval-2017)
-
+* [Morphine by kmike](https://github.com/kmike/morphine), [CRF classifier for MorphoRuEval-2017 by kmike](https://github.com/kmike/dialog2017)
+* Tobias Horsmann and Torsten Zesch, 2017, [Do LSTMs really work so well for PoS tagging? – A replication study](http://www.ltl.uni-due.de/wp-content/uploads/horsmannZesch_emnlp2017.pdf)
+* Barbara Plank, Anders Søgaard, Yoav Goldberg, 2016, [Multilingual Part-of-Speech Tagging with Bidirectional Long Short-Term Memory Models and Auxiliary Loss](https://arxiv.org/abs/1604.05529)
