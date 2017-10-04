@@ -37,11 +37,11 @@ def train(filenames: List[str], model_config_path: str, model_weights_path: str,
     lstm.train(filenames, model_config_path, model_weights_path, val_part=val_part, epochs_num=epochs_num)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, \
-        RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT
-    dir_name = "/media/data/Datasets/Morpho/clean"
-    filenames = [os.path.join(dir_name, filename) for filename in os.listdir(dir_name)]
-    train(filenames,  RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, RU_MORPH_GRAMMEMES_DICT,
-          RU_MORPH_GRAMMEMES_DICT_OUTPUT, val_part=0.1, epochs_num=1)
+# if __name__ == "__main__":
+#     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+#     from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, \
+#         RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT
+#     dir_name = "/media/data/Datasets/Morpho/clean"
+#     filenames = [os.path.join(dir_name, filename) for filename in os.listdir(dir_name)]
+#     train(filenames,  RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, RU_MORPH_GRAMMEMES_DICT,
+#           RU_MORPH_GRAMMEMES_DICT_OUTPUT, val_part=0.1, epochs_num=1)

@@ -8,7 +8,7 @@ class TestLSTMMorph(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.predictor = RNNMorphPredictor(RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS,
-                                       RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT)
+                                          RU_MORPH_GRAMMEMES_DICT, RU_MORPH_GRAMMEMES_DICT_OUTPUT)
 
     def __asert_parse(self, parse, pos, normal_form, tag):
         self.assertEqual(parse.pos, pos)
