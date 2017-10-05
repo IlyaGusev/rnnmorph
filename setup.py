@@ -3,14 +3,17 @@ from setuptools import find_packages, setup
 setup(
     name='rnnmorph',
     packages=find_packages(),
-    version='0.2',
+    version='0.2.0',
     description='RNNMorph: neural network disambiguation of pymorphy2 parses for precise '
                 'POS-tagging in Russian language.',
     author='Ilya Gusev',
     author_email='phoenixilya@gmail.com',
     url='https://github.com/IlyaGusev/rnnmorph',
-    download_url='https://github.com/IlyaGusev/rnnmorph/archive/0.2.tar.gz',
+    download_url='https://github.com/IlyaGusev/rnnmorph/archive/0.2.0.tar.gz',
     keywords=['nlp', 'russian', 'lstm', 'morphology'],
+    package_data={
+        'rnnmorph': ['models/*']
+    },
     install_requires=[
         'numpy>=1.11.3',
         'scipy>=0.18.1',
