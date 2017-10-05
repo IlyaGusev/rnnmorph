@@ -3,8 +3,6 @@
 # Описание: Обучение модели с определёнными параметрами.
 
 import os
-import logging
-import sys
 from typing import List, Tuple
 
 from rnnmorph.model import LSTMMorphoAnalysis
