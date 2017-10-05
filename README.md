@@ -42,7 +42,7 @@ sudo pip3 install rnnmorph
 ### Usage ###
 ```
 >>> from rnnmorph.predictor import RNNMorphPredictor
->>> engine = Engine(language="ru")
+>>> predictor = RNNMorphPredictor()
 >>> forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
 >>> print(forms[0].pos)
 NOUN
