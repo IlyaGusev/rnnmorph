@@ -1,10 +1,15 @@
 import unittest
+import logging
+import sys
+
 from rnnmorph.predictor import RNNMorphPredictor
+from rnnmorph.tag_genres import tag_files
 
 
 class TestLSTMMorph(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         cls.predictor = RNNMorphPredictor()
 
     def __asert_parse(self, parse, pos, normal_form, tag):
@@ -36,3 +41,12 @@ class TestLSTMMorph(unittest.TestCase):
         self.__asert_parse(forms[1][1], 'VERB', 'мыть',
                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.__asert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Dat|Gender=Masc|Number=Sing')
+
+    def test_genres_accuracy(self):
+        quality = tag_files(self.predictor)
+        self.assertGreater(quality['Lenta'].tag_accuracy, 95)
+        self.assertGreater(quality['Lenta'].sentence_accuracy, 70)
+        self.assertGreater(quality['VK'].tag_accuracy, 94)
+        self.assertGreater(quality['VK'].sentence_accuracy, 70)
+        self.assertGreater(quality['JZ'].tag_accuracy, 95)
+        self.assertGreater(quality['JZ'].sentence_accuracy, 70)
