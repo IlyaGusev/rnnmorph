@@ -5,6 +5,7 @@ RU_MORPH_DEFAULT_MODEL_WEIGHTS = resource_filename(__name__, "models/model_weigh
 RU_MORPH_GRAMMEMES_DICT = resource_filename(__name__, "models/gram_input.json")
 RU_MORPH_GRAMMEMES_DICT_OUTPUT = resource_filename(__name__, "models/gram_output.json")
 
+TEST_TAGGED_FOLDER = resource_filename(__name__, "test/tagged")
 TEST_UNTAGGED_VK = resource_filename(__name__, "test/untagged/VK_extracted.txt")
 TEST_UNTAGGED_LENTA = resource_filename(__name__, "test/untagged/Lenta_extracted.txt")
 TEST_UNTAGGED_JZ = resource_filename(__name__, "test/untagged/JZ_extracted.txt")

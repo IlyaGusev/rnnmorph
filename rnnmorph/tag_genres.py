@@ -3,13 +3,10 @@
 # Описание: Запуск предсказания для жанровых выборок.
 
 import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-
-from typing import Dict, Tuple
+from typing import Dict
 from rnnmorph.predictor import RNNMorphPredictor
 from rnnmorph.settings import TEST_TAGGED_JZ, TEST_TAGGED_LENTA, TEST_TAGGED_VK, TEST_UNTAGGED_JZ, \
-    TEST_UNTAGGED_LENTA, TEST_UNTAGGED_VK, TEST_GOLD_JZ, TEST_GOLD_LENTA, TEST_GOLD_VK
+    TEST_UNTAGGED_LENTA, TEST_UNTAGGED_VK, TEST_GOLD_JZ, TEST_GOLD_LENTA, TEST_GOLD_VK, TEST_TAGGED_FOLDER
 from rnnmorph.util.timeit import timeit
 from rnnmorph.test.evaluate import measure
 
@@ -37,6 +34,8 @@ def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: s
 
 
 def tag_files(predictor: RNNMorphPredictor) -> Dict:
+    if not os.path.exists(TEST_TAGGED_FOLDER):
+        os.makedirs(TEST_TAGGED_FOLDER)
     tag(predictor, TEST_UNTAGGED_LENTA, TEST_TAGGED_LENTA)
     tag(predictor, TEST_UNTAGGED_VK, TEST_TAGGED_VK)
     tag(predictor, TEST_UNTAGGED_JZ, TEST_TAGGED_JZ)
