@@ -1,6 +1,7 @@
 import unittest
 import logging
 import sys
+import numpy as np
 
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -43,6 +44,15 @@ class TestLSTMMorph(unittest.TestCase):
         self.__asert_parse(forms[1][1], 'VERB', 'мыть',
                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.__asert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Dat|Gender=Masc|Number=Sing')
+
+    def test_proba(self):
+        forms = self.predictor.predict_sentence_tags_proba(["косил", "косой", "косой", "косой"])
+        for word_proba in forms:
+            self.assertEqual(len(word_proba), 252)
+        indices = np.array([pair[0] for pair in forms[2]]).argsort()[-5:][::-1]
+        variants = [forms[2][i][1].tag for i in indices]
+        self.assertIn('Case=Nom|Degree=Pos|Gender=Masc|Number=Sing', variants)
+        self.assertIn('Case=Ins|Gender=Fem|Number=Sing', variants)
 
     def test_genres_accuracy(self):
         quality = tag_files(self.predictor)

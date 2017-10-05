@@ -2,7 +2,7 @@
 # Автор: Гусев Илья
 # Описание: Предсказатель PoS-тегов.
 
-from typing import List
+from typing import List, Tuple
 
 from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
@@ -15,14 +15,50 @@ from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MO
 
 
 class Predictor:
+    """
+    Интерфейс POS-теггера.
+    """
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
+        """
+        Предсказать теги для одного предложения.
+        
+        :param words: массив слов (знаки препинания - отдельные токены). 
+        :return: массив форм с леммами, тегами и оригинальными словами.
+        """
         raise NotImplementedError()
 
     def predict_sentences_tags(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
+        """
+        Предсказать теги для массива предложений. В сетку как batch загружается.
+        
+        :param sentences: массив предложений.
+        :return: массив форм с леммами, тегами и оригинальными словами для каждого предложения.
+        """
+        raise NotImplementedError()
+
+    def predict_sentence_tags_proba(self, words: List[str]) -> List[List[Tuple[float, WordFormOut]]]:
+        """
+        Предсказать вероятности тегов для слов в предложении.
+        
+        :param words: массив слов (знаки препинания - отдельные токены).
+        :return: массив с вероятностями форм для каждого слова.
+        """
+        raise NotImplementedError()
+
+    def predict_sentences_tags_proba(self, words: List[List[str]]) -> List[List[List[Tuple[float, WordFormOut]]]]:
+        """
+        Предсказать вероятности тегов для слов для массива предложений.
+
+        :param words: массив предложений.
+        :return: массив с вероятностями форм для каждого слова в каждом предложении.
+        """
         raise NotImplementedError()
 
 
 class RNNMorphPredictor(Predictor):
+    """
+    POS-теггер на освное RNN.
+    """
     def __init__(self, model_config_path: str=RU_MORPH_DEFAULT_MODEL_CONFIG,
                  model_weights_path: str=RU_MORPH_DEFAULT_MODEL_WEIGHTS,
                  gramm_dict_input: str=RU_MORPH_GRAMMEMES_DICT,
@@ -33,27 +69,70 @@ class RNNMorphPredictor(Predictor):
         self.morph = MorphAnalyzer()
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
-        return self.__compose_answer(words, self.model.predict([words])[0])
+        tags = self.model.predict([words])[0]
+        return [self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)]
 
     def predict_sentences_tags(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
         sentences_tags = self.model.predict(sentences)
         answers = []
         for tags, words in zip(sentences_tags, sentences):
-            answers.append(self.__compose_answer(words, tags))
+            tags = self.model.predict([words])[0]
+            answers.append([self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)])
         return answers
 
-    def __compose_answer(self, words: List[str], tags: List[int]) -> List[WordFormOut]:
-        forms = []
-        for tag_num, word in zip(tags, words):
-            vectorizer = self.model.grammeme_vectorizer_output
-            tag = vectorizer.get_name_by_index(tag_num)
-            pos_tag = tag.split("#")[0]
-            gram = tag.split("#")[1]
-            lemma = self.__get_lemma(word, pos_tag, gram)
-            forms.append(WordForm(lemma=lemma, gram_vector_index=tag_num, text=word).get_out_form(vectorizer))
-        return forms
+    def predict_sentence_tags_proba(self, words: List[str]) -> List[List[Tuple[float, WordFormOut]]]:
+        words_probabilities = self.model.predict_proba([words])[0]
+        return self.__get_sentence_forms_probs(words, words_probabilities)
+
+    def predict_sentences_tags_proba(self, sentences: List[List[str]]) -> List[List[List[Tuple[float, WordFormOut]]]]:
+        result = []
+        sentences_probabilities = self.model.predict_proba(sentences)
+        for sentence, words_probabilities in zip(sentences, sentences_probabilities):
+            result.append(self.__get_sentence_forms_probs(sentence, words_probabilities))
+        return result
+
+    def __get_sentence_forms_probs(self, words: List[str], words_probabilities: List[List[float]]) -> \
+            List[List[Tuple[float, WordFormOut]]]:
+        """
+        Получить теги и формы.
+        
+        :param words: слова.
+        :param words_probabilities: вероятности тегов слов.
+        :return: вероятности и формы для всех вариантов слов.
+        """
+        result = []
+        for word, word_prob in zip(words, words_probabilities[-len(words):]):
+            word_prob = word_prob[1:]
+            word_forms = [(grammeme_prob, self.__compose_out_form(tag_num, word))
+                          for tag_num, grammeme_prob in enumerate(word_prob)]
+            result.append(word_forms)
+        return result
+
+    def __compose_out_form(self, tag_num: int, word: str) -> WordFormOut:
+        """
+        Собрать форму по номеру теги в векторизаторе и слову.
+        
+        :param tag_num: номер тега.
+        :param word: слово.
+        :return: форма.
+        """
+        vectorizer = self.model.grammeme_vectorizer_output
+        tag = vectorizer.get_name_by_index(tag_num)
+        pos_tag = tag.split("#")[0]
+        gram = tag.split("#")[1]
+        lemma = self.__get_lemma(word, pos_tag, gram)
+        return WordForm(lemma=lemma, gram_vector_index=tag_num, text=word).get_out_form(vectorizer)
 
     def __get_lemma(self, word: str, pos_tag: str, gram: str, enable_gikrya_normalization: bool=True):
+        """
+        Получить лемму.
+        
+        :param word: слово.
+        :param pos_tag: часть речи.
+        :param gram: граммаическое значение.
+        :param enable_gikrya_normalization: использовать ли нормализацию как в корпусе ГИКРЯ.
+        :return: лемма.
+        """
         if '_' in word:
             return word
         to_ud = converters.converter('opencorpora-int', 'ud14')
@@ -76,6 +155,12 @@ class RNNMorphPredictor(Predictor):
 
     @staticmethod
     def __normalize_for_gikrya(form):
+        """
+        Поучение леммы по правилам, максимально близким к тем, которые в корпусе ГИКРЯ.
+        
+        :param form: форма из pymorphy2.
+        :return: леммма.
+        """
         if form.tag.POS == 'NPRO':
             if form.normal_form == 'она':
                 return 'он'

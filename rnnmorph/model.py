@@ -224,12 +224,12 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict(self, sentences: List[List[str]]) -> List[List[int]]:
+    def predict_proba(self, sentences: List[List[str]]) -> List[List[List[float]]]:
         """
-        Предсказание полных PoS-тегов по предложению.
+        Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
         
         :param sentences: массив предложений (которые являются массивом слов).
-        :return: массив тегов.
+        :return: вероятности тегов.
         """
         maxlen = max([len(sentence) for sentence in sentences])
         high_border = 0
@@ -249,8 +249,17 @@ class LSTMMorphoAnalysis:
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
 
+        return self.model.predict([grammemes, chars])
+
+    def predict(self, sentences: List[List[str]]) -> List[List[int]]:
+        """
+        Предсказание полных PoS-тегов по предложению.
+        
+        :param sentences: массив предложений (которые являются массивом слов).
+        :return: массив тегов.
+        """
         answers = []
-        for sentence, probs in zip(sentences, self.model.predict([grammemes, chars])):
+        for sentence, probs in zip(sentences, self.predict_proba(sentences)):
             answer = []
             for grammeme_probs in probs[-len(sentence):]:
                 num = np.argmax(grammeme_probs[1:])
