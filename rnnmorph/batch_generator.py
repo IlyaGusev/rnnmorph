@@ -13,7 +13,6 @@ from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, 
 from rnnmorph.data_preparation.word_form import WordForm
 from rnnmorph.util.tqdm_open import tqdm_open
 
-
 CHAR_SET = " абвгдеёжзийклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ" \
            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\""
 
@@ -24,13 +23,13 @@ class BatchGenerator:
     """
 
     def __init__(self, filenames: List[str], batch_size: int, grammeme_vectorizer_input: GrammemeVectorizer,
-                 grammeme_vectorizer_output: GrammemeVectorizer, sentence_len_low: int, sentence_len_high: int,
+                 grammeme_vectorizer_output: GrammemeVectorizer, bucket_borders: Tuple[Tuple[int, int]],
                  max_word_len: int, indices: np.array):
         self.filenames = filenames  # type: List[str]
-        # Праметры батча.
+        # Параметры батчей.
         self.batch_size = batch_size  # type: int
-        self.sentence_len_low = sentence_len_low  # type: int
-        self.sentence_len_high = sentence_len_high  # type: int
+        self.bucket_borders = bucket_borders  # type: List[Tuple[int]]
+        self.buckets = [list() for _ in range(len(bucket_borders))]
         self.max_word_len = max_word_len  # type: int
         # Разбиение на выборки.
         self.indices = indices  # type: np.array
@@ -42,16 +41,17 @@ class BatchGenerator:
     def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array]:
         """
         Преобразование предложений в признаки и ответы.
-        
+
         :param sentences: предложения (с разобранными словоформами).
         :return: индексы слов, грамматические векторы, индексы символов, ответы для всех предложений.
         """
         n = len(sentences)
         grammemes_count = self.grammeme_vectorizer_input.grammemes_count()
+        sentence_max_len = max([len(sentence) for sentence in sentences])
 
-        grammemes = np.zeros((n, self.sentence_len_high, grammemes_count), dtype=np.float)
-        chars = np.zeros((n, self.sentence_len_high, self.max_word_len), dtype=np.int)
-        y = np.zeros((n, self.sentence_len_high), dtype=np.int)
+        grammemes = np.zeros((n, sentence_max_len, grammemes_count), dtype=np.float)
+        chars = np.zeros((n, sentence_max_len, self.max_word_len), dtype=np.int)
+        y = np.zeros((n, sentence_max_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
             gram_vectors, char_vectors = \
@@ -64,14 +64,14 @@ class BatchGenerator:
             chars[i, -len(sentence):] = char_vectors
             y[i, -len(sentence):] = [word.gram_vector_index + 1 for word in sentence]
         y = y.reshape(y.shape[0], y.shape[1], 1)
-        return grammemes, chars,  y
+        return grammemes, chars, y
 
     @staticmethod
     def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
                    grammeme_vectorizer: GrammemeVectorizer, max_word_len: int):
         """
         Получние признаков для отдельного предложения.
-        
+
         :param sentence: предложение.
         :param morph: морфология.
         :param grammeme_vectorizer: грамматический словарь. 
@@ -100,9 +100,9 @@ class BatchGenerator:
             sorted_grammemes = sorted(grammeme_vectorizer.all_grammemes.items(), key=lambda x: x[0])
             index = 0
             for category, values in sorted_grammemes:
-                mask = gram_value_indices[index:index+len(values)]
+                mask = gram_value_indices[index:index + len(values)]
                 s = sum(mask)
-                gram_value_indices[index:index+len(values)] = mask/s
+                gram_value_indices[index:index + len(values)] = mask / s
                 index += len(values)
             word_gram_vectors.append(gram_value_indices)
 
@@ -114,29 +114,26 @@ class BatchGenerator:
 
         :return: индексы словоформ, грамматические векторы, ответы-индексы.
         """
-        sentences = [[]]
+        last_sentence = []
         i = 0
         for filename in self.filenames:
             with tqdm_open(filename, encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if len(line) == 0:
-                        last_sentence = sentences[-1]
-                        is_wrong_sentence = (i not in self.indices) or \
-                                            (len(last_sentence) < self.sentence_len_low) or \
-                                            (len(last_sentence) > self.sentence_len_high)
-                        if is_wrong_sentence:
-                            sentences.pop()
-                        if len(sentences) >= self.batch_size:
-                            yield self.__to_tensor(sentences)
-                            sentences = []
-                        sentences.append([])
+                        if i in self.indices:
+                            for index, bucket in enumerate(self.buckets):
+                                if self.bucket_borders[index][0] <= len(last_sentence) < self.bucket_borders[index][1]:
+                                    bucket.append(last_sentence)
+                                if len(bucket) >= self.batch_size:
+                                    yield self.__to_tensor(bucket)
+                                    self.buckets[index] = []
+                        last_sentence = []
                         i += 1
                     else:
                         word, lemma, pos, tags = line.split('\t')[0:4]
                         word, lemma = word.lower(), lemma.lower() + '_' + pos
                         gram_vector_index = self.grammeme_vectorizer_output.get_index_by_name(pos + "#" + tags)
-                        sentences[-1].append(WordForm(lemma, gram_vector_index, word))
-        if len(sentences[-1]) == 0:
-            sentences.pop()
-        yield self.__to_tensor(sentences)
+                        last_sentence.append(WordForm(lemma, gram_vector_index, word))
+        for index, bucket in enumerate(self.buckets):
+            yield self.__to_tensor(bucket)
