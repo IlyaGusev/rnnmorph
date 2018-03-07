@@ -68,12 +68,12 @@ class LSTMMorphoAnalysis:
             self.grammeme_vectorizer_output.save()
 
     def save(self, model_config_path: str, model_weights_path: str):
-        with open(model_config_path, "w") as f:
+        with open(model_config_path, "w", encoding='utf-8') as f:
             f.write(self.model.to_yaml())
         self.model.save_weights(model_weights_path)
 
     def load(self, model_config_path: str, model_weights_path: str) -> None:
-        with open(model_config_path, "r") as f:
+        with open(model_config_path, "r", encoding='utf-8') as f:
             self.model = model_from_yaml(f.read())
         self.model.load_weights(model_weights_path)
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
@@ -146,7 +146,7 @@ class LSTMMorphoAnalysis:
         """
         sample_counter = 0
         for filename in filenames:
-            with open(filename, encoding='utf-8') as f:
+            with open(filename, "r", encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if len(line) == 0:

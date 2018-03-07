@@ -14,7 +14,7 @@ from rnnmorph.test.evaluate import measure
 @timeit
 def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: str):
     sentences = []
-    with open(untagged_filename, "r") as r:
+    with open(untagged_filename, "r", encoding='utf-8') as r:
         words = []
         for line in r:
             if line != "\n":
@@ -24,7 +24,7 @@ def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: s
             else:
                 sentences.append([word.lower() for word in words])
                 words = []
-    with open(tagged_filename, "w") as w:
+    with open(tagged_filename, "w",  encoding='utf-8') as w:
         all_forms = predictor.predict_sentences_tags(sentences)
         for forms in all_forms:
             for i, form in enumerate(forms):
