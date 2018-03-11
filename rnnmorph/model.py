@@ -7,7 +7,7 @@ from typing import List, Tuple
 import numpy as np
 import pymorphy2
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
-    concatenate, Bidirectional, TimeDistributed, Dropout
+    concatenate, Bidirectional, TimeDistributed, Dropout, Flatten, Reshape
 from keras.models import Model, model_from_yaml
 from keras.optimizers import Adam
 
@@ -48,7 +48,7 @@ class LSTMMorphoAnalysis:
 
     def build(self, lstm_units: int, input_size: int, embeddings_dimension: int,
               dense_units: int, char_embeddings_dimension: int, char_lstm_output_dim: int,
-              dropout: float,  max_word_len: int):
+              dropout: float, max_word_len: int):
         """
         Описание модели.
         :param lstm_units: размер состояния у LSTM слоя. (у BiLSTM = lstm_units * 2).
@@ -66,11 +66,12 @@ class LSTMMorphoAnalysis:
         # Вход символов
         chars = Input(shape=(None, max_word_len), name='chars')
         chars_embedding = Embedding(len(CHAR_SET) + 1, char_embeddings_dimension, name='char_embeddings')(chars)
-        chars_lstm = TimeDistributed(Bidirectional(
-            LSTM(char_lstm_output_dim // 2, dropout=dropout, recurrent_dropout=dropout,
-                 return_sequences=False, name='CharLSTM')))(chars_embedding)
+        chars_embedding = Reshape((-1, char_embeddings_dimension * max_word_len,))(chars_embedding)
 
-        layer = concatenate([grammemes, chars_lstm], name="LSTM_input")
+        chars_dense = Dense(char_lstm_output_dim, name='char_dense')(chars_embedding)
+        chars_dense = Dropout(dropout)(chars_dense)
+
+        layer = concatenate([grammemes, chars_dense], name="LSTM_input")
         layer = Bidirectional(LSTM(lstm_units, dropout=dropout, recurrent_dropout=dropout,
                                    return_sequences=True, name='LSTM_1'))(layer)
         layer = Bidirectional(LSTM(lstm_units, dropout=dropout, recurrent_dropout=dropout,
@@ -94,7 +95,6 @@ class LSTMMorphoAnalysis:
               max_word_len: int) -> None:
         """
         Обучение модели.
-
         :param file_names: файлы с морфоразметкой.
         :param model_weights_path: путь, куда сохранять веса модели.
         :param model_config_path: путь, куда сохранять архитектуру модели.
@@ -112,7 +112,7 @@ class LSTMMorphoAnalysis:
         train_idx, val_idx = self.get_split(sample_counter, val_part)
         for big_epoch in range(epochs_num):
             print('------------Big Epoch {}------------'.format(big_epoch))
-            batch_generator =\
+            batch_generator = \
                 BatchGenerator(file_names,
                                batch_size=external_batch_size,
                                grammeme_vectorizer_input=self.grammeme_vectorizer_input,
@@ -136,7 +136,6 @@ class LSTMMorphoAnalysis:
     def count_samples(filenames: List[str]):
         """
         Считает количество предложений в выборке.
-
         :param filenames: файлы выборки.
         :return: количество предложений.
         """
@@ -153,7 +152,6 @@ class LSTMMorphoAnalysis:
     def get_split(sample_counter: int, val_part: float) -> Tuple[np.array, np.array]:
         """
         Выдаёт индексы предложений, которые становятся train или val выборкой.
-
         :param sample_counter: количество предложений.
         :param val_part: часть выборки, которая станет val.
         :return: индексы выборок.
@@ -171,7 +169,6 @@ class LSTMMorphoAnalysis:
                  max_word_len: int) -> None:
         """
         Оценка на val выборке.
-
         :param filenames: файлы выборки.
         :param val_idx: val индексы.
         :param external_batch_size: размер батча, который читается из файлов.
@@ -216,17 +213,17 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict_proba(self, sentences: List[List[str]], max_word_len: int=30) -> List[List[List[float]]]:
+    def predict_proba(self, sentences: List[List[str]], max_word_len: int = 30) -> List[List[List[float]]]:
         """
         Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
-
         :param sentences: массив предложений (которые являются массивом слов).
         :param max_word_len: максимальный учитываемый размер слова.
         :return: вероятности тегов.
         """
         max_sentence_len = max([len(sentence) for sentence in sentences])
         n_samples = len(sentences)
-        grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()), dtype=np.float)
+        grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
+                             dtype=np.float)
         chars = np.zeros((n_samples, max_sentence_len, max_word_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
@@ -240,7 +237,6 @@ class LSTMMorphoAnalysis:
     def predict(self, sentences: List[List[str]]) -> List[List[int]]:
         """
         Предсказание полных PoS-тегов по предложению.
-
         :param sentences: массив предложений (которые являются массивом слов).
         :return: массив тегов.
         """
