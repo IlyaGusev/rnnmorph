@@ -76,7 +76,6 @@ class RNNMorphPredictor(Predictor):
         sentences_tags = self.model.predict(sentences)
         answers = []
         for tags, words in zip(sentences_tags, sentences):
-            tags = self.model.predict([words])[0]
             answers.append([self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)])
         return answers
 
