@@ -7,8 +7,6 @@ from typing import List, Tuple
 
 from rnnmorph.model import LSTMMorphoAnalysis
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
 
 def train(filenames: List[str], model_config_path: str, model_weights_path: str, gramm_dict_input: str,
           gramm_dict_output: str, rewrite_model: bool=False, input_size: int=5000, external_batch_size: int=2000,

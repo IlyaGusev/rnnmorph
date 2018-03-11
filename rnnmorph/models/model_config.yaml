@@ -17,7 +17,7 @@ config:
     config:
       activity_regularizer: null
       batch_input_shape: !!python/tuple [null, null]
-      dtype: int32
+      dtype: float32
       embeddings_constraint: null
       embeddings_initializer:
         class_name: RandomUniform
@@ -35,6 +35,41 @@ config:
         - 0
         - {}
     name: char_embeddings
+  - class_name: Reshape
+    config:
+      name: reshape_5
+      target_shape: !!python/tuple [-1, 300]
+      trainable: true
+    inbound_nodes:
+    - - - char_embeddings
+        - 0
+        - 0
+        - {}
+    name: reshape_5
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer: null
+      name: char_dense
+      trainable: true
+      units: 64
+      use_bias: true
+    inbound_nodes:
+    - - - reshape_5
+        - 0
+        - 0
+        - {}
+    name: char_dense
   - class_name: InputLayer
     config:
       batch_input_shape: !!python/tuple [null, null, 56]
@@ -43,56 +78,14 @@ config:
       sparse: false
     inbound_nodes: []
     name: grammemes
-  - class_name: TimeDistributed
-    config:
-      layer:
-        class_name: Bidirectional
-        config:
-          layer:
-            class_name: LSTM
-            config:
-              activation: tanh
-              activity_regularizer: null
-              bias_constraint: null
-              bias_initializer:
-                class_name: Zeros
-                config: {}
-              bias_regularizer: null
-              dropout: 0.2
-              go_backwards: false
-              implementation: 0
-              kernel_constraint: null
-              kernel_initializer:
-                class_name: VarianceScaling
-                config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
-              kernel_regularizer: null
-              name: CharLSTM
-              recurrent_activation: hard_sigmoid
-              recurrent_constraint: null
-              recurrent_dropout: 0.2
-              recurrent_initializer:
-                class_name: Orthogonal
-                config: {gain: 1.0, seed: null}
-              recurrent_regularizer: null
-              return_sequences: false
-              return_state: false
-              stateful: false
-              trainable: true
-              unit_forget_bias: true
-              units: 32
-              unroll: false
-              use_bias: true
-          merge_mode: concat
-          name: bidirectional_1
-          trainable: true
-      name: time_distributed_1
-      trainable: true
+  - class_name: Dropout
+    config: {name: dropout_5, noise_shape: null, rate: 0.3, seed: null, trainable: true}
     inbound_nodes:
-    - - - char_embeddings
+    - - - char_dense
         - 0
         - 0
         - {}
-    name: time_distributed_1
+    name: dropout_5
   - class_name: Concatenate
     config: {axis: -1, name: LSTM_input, trainable: true}
     inbound_nodes:
@@ -100,7 +93,7 @@ config:
         - 0
         - 0
         - &id001 {}
-      - - time_distributed_1
+      - - dropout_5
         - 0
         - 0
         - *id001
@@ -117,9 +110,9 @@ config:
             class_name: Zeros
             config: {}
           bias_regularizer: null
-          dropout: 0.2
+          dropout: 0.3
           go_backwards: false
-          implementation: 0
+          implementation: 1
           kernel_constraint: null
           kernel_initializer:
             class_name: VarianceScaling
@@ -128,52 +121,7 @@ config:
           name: LSTM_1
           recurrent_activation: hard_sigmoid
           recurrent_constraint: null
-          recurrent_dropout: 0.2
-          recurrent_initializer:
-            class_name: Orthogonal
-            config: {gain: 1.0, seed: null}
-          recurrent_regularizer: null
-          return_sequences: true
-          return_state: false
-          stateful: false
-          trainable: true
-          unit_forget_bias: true
-          units: 128
-          unroll: false
-          use_bias: true
-      merge_mode: concat
-      name: bidirectional_2
-      trainable: true
-    inbound_nodes:
-    - - - LSTM_input
-        - 0
-        - 0
-        - {}
-    name: bidirectional_2
-  - class_name: Bidirectional
-    config:
-      layer:
-        class_name: LSTM
-        config:
-          activation: tanh
-          activity_regularizer: null
-          bias_constraint: null
-          bias_initializer:
-            class_name: Zeros
-            config: {}
-          bias_regularizer: null
-          dropout: 0.2
-          go_backwards: false
-          implementation: 0
-          kernel_constraint: null
-          kernel_initializer:
-            class_name: VarianceScaling
-            config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
-          kernel_regularizer: null
-          name: LSTM_2
-          recurrent_activation: hard_sigmoid
-          recurrent_constraint: null
-          recurrent_dropout: 0.2
+          recurrent_dropout: 0.3
           recurrent_initializer:
             class_name: Orthogonal
             config: {gain: 1.0, seed: null}
@@ -190,11 +138,56 @@ config:
       name: bidirectional_3
       trainable: true
     inbound_nodes:
-    - - - bidirectional_2
+    - - - LSTM_input
         - 0
         - 0
         - {}
     name: bidirectional_3
+  - class_name: Bidirectional
+    config:
+      layer:
+        class_name: LSTM
+        config:
+          activation: tanh
+          activity_regularizer: null
+          bias_constraint: null
+          bias_initializer:
+            class_name: Zeros
+            config: {}
+          bias_regularizer: null
+          dropout: 0.3
+          go_backwards: false
+          implementation: 1
+          kernel_constraint: null
+          kernel_initializer:
+            class_name: VarianceScaling
+            config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+          kernel_regularizer: null
+          name: LSTM_2
+          recurrent_activation: hard_sigmoid
+          recurrent_constraint: null
+          recurrent_dropout: 0.3
+          recurrent_initializer:
+            class_name: Orthogonal
+            config: {gain: 1.0, seed: null}
+          recurrent_regularizer: null
+          return_sequences: true
+          return_state: false
+          stateful: false
+          trainable: true
+          unit_forget_bias: true
+          units: 128
+          unroll: false
+          use_bias: true
+      merge_mode: concat
+      name: bidirectional_4
+      trainable: true
+    inbound_nodes:
+    - - - bidirectional_3
+        - 0
+        - 0
+        - {}
+    name: bidirectional_4
   - class_name: TimeDistributed
     config:
       layer:
@@ -212,31 +205,31 @@ config:
             class_name: VarianceScaling
             config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
           kernel_regularizer: null
-          name: dense_1
+          name: dense_3
           trainable: true
           units: 128
           use_bias: true
-      name: time_distributed_2
+      name: time_distributed_6
       trainable: true
     inbound_nodes:
-    - - - bidirectional_3
+    - - - bidirectional_4
         - 0
         - 0
         - {}
-    name: time_distributed_2
+    name: time_distributed_6
   - class_name: TimeDistributed
     config:
       layer:
         class_name: Dropout
-        config: {name: dropout_1, rate: 0.2, trainable: true}
-      name: time_distributed_3
+        config: {name: dropout_6, noise_shape: null, rate: 0.3, seed: null, trainable: true}
+      name: time_distributed_7
       trainable: true
     inbound_nodes:
-    - - - time_distributed_2
+    - - - time_distributed_6
         - 0
         - 0
         - {}
-    name: time_distributed_3
+    name: time_distributed_7
   - class_name: TimeDistributed
     config:
       layer:
@@ -262,30 +255,30 @@ config:
           moving_variance_initializer:
             class_name: Ones
             config: {}
-          name: batch_normalization_1
+          name: batch_normalization_2
           scale: true
           trainable: true
-      name: time_distributed_4
+      name: time_distributed_8
       trainable: true
     inbound_nodes:
-    - - - time_distributed_3
+    - - - time_distributed_7
         - 0
         - 0
         - {}
-    name: time_distributed_4
+    name: time_distributed_8
   - class_name: TimeDistributed
     config:
       layer:
         class_name: Activation
-        config: {activation: relu, name: activation_1, trainable: true}
-      name: time_distributed_5
+        config: {activation: relu, name: activation_2, trainable: true}
+      name: time_distributed_9
       trainable: true
     inbound_nodes:
-    - - - time_distributed_4
+    - - - time_distributed_8
         - 0
         - 0
         - {}
-    name: time_distributed_5
+    name: time_distributed_9
   - class_name: TimeDistributed
     config:
       layer:
@@ -303,19 +296,19 @@ config:
             class_name: VarianceScaling
             config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
           kernel_regularizer: null
-          name: dense_2
+          name: dense_4
           trainable: true
           units: 253
           use_bias: true
-      name: time_distributed_6
+      name: time_distributed_10
       trainable: true
     inbound_nodes:
-    - - - time_distributed_5
+    - - - time_distributed_9
         - 0
         - 0
         - {}
-    name: time_distributed_6
-  name: model_1
+    name: time_distributed_10
+  name: model_2
   output_layers:
-  - [time_distributed_6, 0, 0]
-keras_version: 2.0.5
+  - [time_distributed_10, 0, 0]
+keras_version: 2.1.5
