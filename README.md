@@ -41,15 +41,15 @@ sudo pip3 install rnnmorph
   
 ### Usage ###
 ```
->>> from rnnmorph.predictor import RNNMorphPredictor
->>> predictor = RNNMorphPredictor()
->>> forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
->>> print(forms[0].pos)
-NOUN
->>> print(forms[0].tag)
-Case=Nom|Gender=Fem|Number=Sing
->>> print(forms[0].normal_form)
-мама
+from rnnmorph.predictor import RNNMorphPredictor
+predictor = RNNMorphPredictor()
+forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
+print(forms[0].pos)
+>>> NOUN
+print(forms[0].tag)
+>>> Case=Nom|Gender=Fem|Number=Sing
+print(forms[0].normal_form)
+>>> мама
 ```
 
 ### Acknowledgements ###
