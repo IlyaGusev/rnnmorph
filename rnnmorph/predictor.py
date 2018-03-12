@@ -72,8 +72,8 @@ class RNNMorphPredictor(Predictor):
         tags = self.model.predict([words])[0]
         return [self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)]
 
-    def predict_sentences_tags(self, sentences: List[List[str]]) -> List[List[WordFormOut]]:
-        sentences_tags = self.model.predict(sentences)
+    def predict_sentences_tags(self, sentences: List[List[str]], batch_size: int=64) -> List[List[WordFormOut]]:
+        sentences_tags = self.model.predict(sentences, batch_size)
         answers = []
         for tags, words in zip(sentences_tags, sentences):
             answers.append([self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)])
@@ -83,9 +83,10 @@ class RNNMorphPredictor(Predictor):
         words_probabilities = self.model.predict_proba([words])[0]
         return self.__get_sentence_forms_probs(words, words_probabilities)
 
-    def predict_sentences_tags_proba(self, sentences: List[List[str]]) -> List[List[List[Tuple[float, WordFormOut]]]]:
+    def predict_sentences_tags_proba(self, sentences: List[List[str]],
+                                     batch_size: int=64) -> List[List[List[Tuple[float, WordFormOut]]]]:
         result = []
-        sentences_probabilities = self.model.predict_proba(sentences)
+        sentences_probabilities = self.model.predict_proba(sentences, batch_size)
         for sentence, words_probabilities in zip(sentences, sentences_probabilities):
             result.append(self.__get_sentence_forms_probs(sentence, words_probabilities))
         return result
