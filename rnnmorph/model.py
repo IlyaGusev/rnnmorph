@@ -213,7 +213,7 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict_proba(self, sentences: List[List[str]], batch_size: int=32,
+    def predict_proba(self, sentences: List[List[str]], batch_size: int,
                       max_word_len: int=30) -> List[List[List[float]]]:
         """
         Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
@@ -236,7 +236,7 @@ class LSTMMorphoAnalysis:
 
         return self.model.predict([grammemes, chars], batch_size=batch_size)
 
-    def predict(self, sentences: List[List[str]], batch_size: int=32) -> List[List[int]]:
+    def predict(self, sentences: List[List[str]], batch_size: int) -> List[List[int]]:
         """
         Предсказание полных PoS-тегов по предложению.
         :param sentences: массив предложений (которые являются массивом слов).
