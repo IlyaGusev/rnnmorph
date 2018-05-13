@@ -7,7 +7,7 @@ from collections import namedtuple
 
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 
-WordFormOut = namedtuple("WordFormOut", "word pos tag normal_form")
+WordFormOut = namedtuple("WordFormOut", "word pos tag normal_form vector")
 
 
 class LemmaCase(IntEnum):
@@ -33,10 +33,10 @@ class WordForm(object):
         self.gram_vector_index = gram_vector_index  # type: int
         self.text = text  # type: str
         self.case = case  # type: LemmaCase
-        
+
     def set_case(self, case: LemmaCase) -> None:
         self.case = case
-        
+
     def get_text_with_case(self) -> str:
         if self.case == LemmaCase.NORMAL_CASE:
             return self.text
@@ -49,7 +49,8 @@ class WordForm(object):
         full_tag = vectorizer.get_name_by_index(self.gram_vector_index)
         pos = full_tag.split("#")[0]
         gram = full_tag.split("#")[1]
-        return WordFormOut(word=self.text, pos=pos, tag=gram, normal_form=self.lemma)
+        vector = vectorizer.get_vector(full_tag)
+        return WordFormOut(word=self.text, pos=pos, tag=gram, normal_form=self.lemma, vector=vector)
 
     def __repr__(self):
         return "<Lemma = {}; GrTag = {}; WordForm = {}; LemmaCase = {}>".format(self.lemma,

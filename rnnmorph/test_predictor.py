@@ -26,6 +26,7 @@ class TestLSTMMorph(unittest.TestCase):
         forms = self.predictor.predict_sentence_tags(["косил", "косой", "косой", "косой"])
         self.__asert_parse(forms[0], 'VERB', 'косить',
                            'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
+        self.assertIn(1, forms[0].vector)
 
     def test_sentence_analysis2(self):
         forms = self.predictor.predict_sentence_tags(["мама", "мыла", "раму"])
