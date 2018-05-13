@@ -223,12 +223,16 @@ class LSTMMorphoAnalysis:
         :return: вероятности тегов.
         """
         max_sentence_len = max([len(sentence) for sentence in sentences])
+        if max_sentence_len == 0:
+            return [[] for sentence in sentences]
         n_samples = len(sentences)
         grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
                              dtype=np.float)
         chars = np.zeros((n_samples, max_sentence_len, max_word_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
+            if not sentence:
+                continue
             gram_vectors, char_vectors = BatchGenerator.get_sample(sentence, self.morph,
                                                                    self.grammeme_vectorizer_input, max_word_len)
             grammemes[i, -len(sentence):] = gram_vectors
