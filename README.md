@@ -50,6 +50,8 @@ print(forms[0].tag)
 >>> Case=Nom|Gender=Fem|Number=Sing
 print(forms[0].normal_form)
 >>> мама
+print(forms[0].vector)
+>>> [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1]
 ```
 
 ### Acknowledgements ###
