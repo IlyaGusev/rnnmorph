@@ -250,21 +250,26 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict_proba(self, sentences: List[List[str]], max_word_len: int=30,
-                      word_max_count: int=10000) -> List[List[List[float]]]:
+    def predict_proba(self, sentences: List[List[str]], batch_size: int,
+                      max_word_len: int=30, word_max_count: int=10000) -> List[List[List[float]]]:
         """
         Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
         :param sentences: массив предложений (которые являются массивом слов).
         :param max_word_len: максимальный учитываемый размер слова.
+        :param batch_size: размер батча.
         :return: вероятности тегов.
         """
         max_sentence_len = max([len(sentence) for sentence in sentences])
+        if max_sentence_len == 0:
+            return [[] for sentence in sentences]
         n_samples = len(sentences)
         grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
                              dtype=np.float)
         chars = np.zeros((n_samples, max_sentence_len, max_word_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
+            if not sentence:
+                continue
             gram_vectors, char_vectors = BatchGenerator.get_sample(
                 sentence,
                 morph=self.morph,
@@ -275,16 +280,17 @@ class LSTMMorphoAnalysis:
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
 
-        return self.model.predict([grammemes, chars])
+        return self.model.predict([grammemes, chars], batch_size=batch_size)
 
-    def predict(self, sentences: List[List[str]]) -> List[List[int]]:
+    def predict(self, sentences: List[List[str]], batch_size: int) -> List[List[int]]:
         """
         Предсказание полных PoS-тегов по предложению.
         :param sentences: массив предложений (которые являются массивом слов).
+        :param batch_size: размер батча.
         :return: массив тегов.
         """
         answers = []
-        for sentence, probs in zip(sentences, self.predict_proba(sentences)):
+        for sentence, probs in zip(sentences, self.predict_proba(sentences, batch_size)):
             answer = []
             for grammeme_probs in probs[-len(sentence):]:
                 num = np.argmax(grammeme_probs[1:])
