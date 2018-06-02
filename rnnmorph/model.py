@@ -168,11 +168,10 @@ class LSTMMorphoAnalysis:
                 if epoch != 0 and epoch % train_config.dump_model_freq == 0:
                     self.save(train_config.model_config_path, train_config.model_weights_path)
             self.evaluate(
-                filenames=file_names,
+                file_names=file_names,
                 val_idx=val_idx,
-                config=train_config,
-                max_word_len=build_config.char_max_word_length,
-                max_word_count=build_config.word_max_count)
+                train_config=train_config,
+                build_config=build_config)
 
     @staticmethod
     def count_samples(file_names: List[str]):
@@ -204,31 +203,37 @@ class LSTMMorphoAnalysis:
         val_idx = perm[border:]
         return train_idx, val_idx
 
-    def evaluate(self, filenames, val_idx, config: TrainConfig, max_word_len: int, max_word_count: int) -> None:
+    def evaluate(self, file_names, val_idx, train_config: TrainConfig, build_config: BuildModelConfig) -> None:
         """
         Оценка на val выборке.
-        :param filenames: файлы выборки.
+        :param file_names: файлы выборки.
         :param val_idx: val индексы.
         :param config: конфиг обучения
-        :param max_word_len: максимальный учитываемый размер слова.
         """
         word_count = 0
         word_errors = 0
         sentence_count = 0
         sentence_errors = 0
         batch_generator = BatchGenerator(
-            file_names=filenames,
-            config=config,
+            file_names=file_names,
+            config=train_config,
             grammeme_vectorizer_input=self.grammeme_vectorizer_input,
             grammeme_vectorizer_output=self.grammeme_vectorizer_output,
-            max_word_len=max_word_len,
+            max_word_len=build_config.char_max_word_length,
             indices=val_idx,
             word_vocabulary=self.word_vocabulary,
-            word_count=max_word_count)
-        for epoch, (grammemes, chars, y) in enumerate(batch_generator):
+            word_count=build_config.word_max_count)
+        for epoch, (words, grammemes, chars, y) in enumerate(batch_generator):
             max_sentence_length = grammemes.shape[1]
-            batch_size = config.num_words_in_batch // max_sentence_length
-            predicted_y = self.model.predict([grammemes, chars], batch_size=batch_size, verbose=0)
+            batch_size = train_config.num_words_in_batch // max_sentence_length
+            inputs = []
+            if build_config.use_word_embeddings:
+                inputs.append(words)
+            if build_config.use_gram:
+                inputs.append(grammemes)
+            if build_config.use_chars:
+                inputs.append(chars)
+            predicted_y = self.model.predict(inputs, batch_size=batch_size, verbose=0)
             for i, sentence in enumerate(y):
                 sentence_has_errors = False
                 count_zero = sum([1 for num in sentence if num == [0]])
@@ -261,7 +266,7 @@ class LSTMMorphoAnalysis:
         """
         max_sentence_len = max([len(sentence) for sentence in sentences])
         if max_sentence_len == 0:
-            return [[] for sentence in sentences]
+            return [[] for _ in sentences]
         n_samples = len(sentences)
         grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
                              dtype=np.float)

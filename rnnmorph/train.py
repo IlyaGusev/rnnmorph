@@ -18,10 +18,11 @@ def train(file_names: List[str], build_config: BuildModelConfig, train_config: T
         model.load(train_config.model_config_path, train_config.model_weights_path)
         print(model.model.summary())
     else:
-        embeddings, unknown_words_count = load_embeddings(
-            "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt",
-            model.word_vocabulary, build_config.word_max_count)
-        print("Unknown words: %d" % unknown_words_count)
+        # embeddings, unknown_words_count = load_embeddings(
+        #     "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt",
+        #     model.word_vocabulary, build_config.word_max_count)
+        # print("Unknown words: %d" % unknown_words_count)
+        embeddings = None
         model.build(build_config, embeddings)
     model.train(file_names, train_config, build_config)
 
