@@ -2,9 +2,10 @@ numpy >= 1.12.1
 scipy >= 0.19.0
 scikit-learn >= 0.18.1
 tensorflow >= 1.1.0
-keras >= 2.0.5
+keras >= 2.1.4
 
 pymorphy2 >= 0.8
 russian-tagsets == 0.6
 tqdm >= 4.14.0
 jsonpickle >= 0.9.4
+git+https://www.github.com/keras-team/keras-contrib.git

@@ -3,7 +3,6 @@
 # Описание: Модуль векторизатора граммем.
 
 import jsonpickle
-import os
 from collections import defaultdict
 from typing import Dict, List, Set
 
@@ -21,16 +20,10 @@ class GrammemeVectorizer(object):
     """
     UNKNOWN_VALUE = "Unknown"
 
-    def __init__(self, dump_filename: str):
-        """
-        :param dump_filename: путь к дампу.
-        """
+    def __init__(self):
         self.all_grammemes = defaultdict(get_empty_category)  # type: Dict[str, Set]
         self.vectors = []  # type: List[List[int]]
         self.name_to_index = {}  # type: Dict[str, int]
-        self.dump_filename = dump_filename  # type: str
-        if os.path.exists(self.dump_filename):
-            self.load()
 
     def collect_grammemes(self, filename: str) -> None:
         """
@@ -143,11 +136,11 @@ class GrammemeVectorizer(object):
                 vector += [1 if value == gram_tags[category] else 0 for value in sorted(list(values))]
         return vector
 
-    def save(self) -> None:
-        with open(self.dump_filename, "w") as f:
+    def save(self, dump_filename: str) -> None:
+        with open(dump_filename, "w") as f:
             f.write(jsonpickle.encode(self, f))
 
-    def load(self):
-        with open(self.dump_filename, "r") as f:
+    def load(self, dump_filename: str):
+        with open(dump_filename, "r") as f:
             vectorizer = jsonpickle.decode(f.read())
             self.__dict__.update(vectorizer.__dict__)

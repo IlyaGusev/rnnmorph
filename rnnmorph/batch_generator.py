@@ -12,9 +12,10 @@ from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm
 from rnnmorph.util.tqdm_open import tqdm_open
+from rnnmorph.config import TrainConfig
 
 CHAR_SET = " абвгдеёжзийклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ" \
-           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\""
+           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\"!?"
 
 
 class BatchGenerator:
@@ -22,15 +23,17 @@ class BatchGenerator:
     Генератор наборов примеров для обучения.
     """
 
-    def __init__(self, filenames: List[str], batch_size: int, grammeme_vectorizer_input: GrammemeVectorizer,
-                 grammeme_vectorizer_output: GrammemeVectorizer, bucket_borders: Tuple[Tuple[int, int]],
-                 max_word_len: int, indices: np.array):
-        self.filenames = filenames  # type: List[str]
+    def __init__(self, file_names: List[str], config: TrainConfig, grammeme_vectorizer_input: GrammemeVectorizer,
+                 grammeme_vectorizer_output: GrammemeVectorizer, max_word_len: int, indices: np.array,
+                 word_vocabulary, word_count: int):
+        self.file_names = file_names  # type: List[str]
         # Параметры батчей.
-        self.batch_size = batch_size  # type: int
-        self.bucket_borders = bucket_borders  # type: List[Tuple[int]]
-        self.buckets = [list() for _ in range(len(bucket_borders))]
+        self.batch_size = config.external_batch_size  # type: int
+        self.bucket_borders = config.sentence_len_groups  # type: List[Tuple[int]]
+        self.buckets = [list() for _ in range(len(self.bucket_borders))]
         self.max_word_len = max_word_len  # type: int
+        self.word_vocabulary = word_vocabulary
+        self.word_count = word_count  # type: int
         # Разбиение на выборки.
         self.indices = indices  # type: np.array
         # Подготовленные словари.
@@ -38,7 +41,7 @@ class BatchGenerator:
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
 
-    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array]:
+    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array, np.array]:
         """
         Преобразование предложений в признаки и ответы.
 
@@ -49,26 +52,30 @@ class BatchGenerator:
         grammemes_count = self.grammeme_vectorizer_input.grammemes_count()
         sentence_max_len = max([len(sentence) for sentence in sentences])
 
+        words = np.zeros((n,  sentence_max_len), dtype=np.int)
         grammemes = np.zeros((n, sentence_max_len, grammemes_count), dtype=np.float)
         chars = np.zeros((n, sentence_max_len, self.max_word_len), dtype=np.int)
         y = np.zeros((n, sentence_max_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
-            gram_vectors, char_vectors = \
-                self.get_sample([x.text for x in sentence], self.morph,
-                                self.grammeme_vectorizer_input, self.max_word_len)
-            assert len(gram_vectors) == len(sentence) and \
+            word_indices, gram_vectors, char_vectors = self.get_sample(
+                [x.text for x in sentence], self.morph, self.grammeme_vectorizer_input,
+                self.max_word_len, self.word_vocabulary, self.word_count)
+            assert len(word_indices) == len(sentence) and \
+                   len(gram_vectors) == len(sentence) and \
                    len(char_vectors) == len(sentence)
 
+            words[i, -len(sentence):] = word_indices
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
             y[i, -len(sentence):] = [word.gram_vector_index + 1 for word in sentence]
         y = y.reshape(y.shape[0], y.shape[1], 1)
-        return grammemes, chars, y
+        return words, grammemes, chars, y
 
     @staticmethod
     def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
-                   grammeme_vectorizer: GrammemeVectorizer, max_word_len: int):
+                   grammeme_vectorizer: GrammemeVectorizer, max_word_len: int,
+                   word_vocabulary, word_count: int):
         """
         Получние признаков для отдельного предложения.
 
@@ -81,6 +88,7 @@ class BatchGenerator:
         to_ud = converters.converter('opencorpora-int', 'ud14')
         word_char_vectors = []
         word_gram_vectors = []
+        word_indices = []
         for word in sentence:
             char_indices = np.zeros(max_word_len)
             gram_value_indices = np.zeros(grammeme_vectorizer.grammemes_count())
@@ -89,6 +97,11 @@ class BatchGenerator:
             word_char_indices = [CHAR_SET.index(ch) if ch in CHAR_SET else len(CHAR_SET) for ch in word][:max_word_len]
             char_indices[-min(len(word), max_word_len):] = word_char_indices
             word_char_vectors.append(char_indices)
+
+            # Индексы слов.
+            word_index = word_vocabulary.word_to_index[word.lower()] if word_vocabulary.has_word(word) else word_count
+            word_index = min(word_index, word_count)
+            word_indices.append(word_index)
 
             # Грамматический вектор слова.
             # Складываем все возможные варианты разбора поэлементно.
@@ -106,7 +119,7 @@ class BatchGenerator:
                 index += len(values)
             word_gram_vectors.append(gram_value_indices)
 
-        return word_gram_vectors, word_char_vectors
+        return word_indices, word_gram_vectors, word_char_vectors
 
     def __iter__(self):
         """
@@ -116,7 +129,7 @@ class BatchGenerator:
         """
         last_sentence = []
         i = 0
-        for filename in self.filenames:
+        for filename in self.file_names:
             with tqdm_open(filename, encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
