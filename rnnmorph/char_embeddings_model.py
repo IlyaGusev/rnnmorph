@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # Автор: Гусев Илья
+# Описание: Предобучение символьных эмбеддингов.
 
-from typing import List, Tuple
 import os
 import copy
+from typing import Tuple
 
 import numpy as np
 from keras.layers import Input, Embedding, Dense, Dropout, Reshape, TimeDistributed
@@ -12,7 +13,6 @@ from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras import backend as K
 
-from rnnmorph.batch_generator import CHAR_SET
 from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 
 
@@ -74,6 +74,7 @@ class CharEmbeddingsModel:
 
     def train(self,
               vocabulary: WordVocabulary,
+              char_set: str,
               val_part: float,
               random_seed: int,
               batch_size: int,
@@ -82,46 +83,70 @@ class CharEmbeddingsModel:
         Обучение модели.
 
         :param vocabulary: список слов.
+        :param char_set: набор символов, для которых строятся эмбеддинги.
         :param val_part: на какой части выборки оценивать качество.
         :param random_seed: зерно для случайного генератора.
         :param batch_size: размер батча.
         :param max_word_len: максимальный учитываемый размер слова.
         """
         np.random.seed(random_seed)
-        chars, y = self.prepare_words(vocabulary, max_word_len)
-        callbacks = [EarlyStopping(patience=2)]
-        self.model.fit(chars, y, batch_size=batch_size, epochs=100, verbose=2,
-                       validation_split=val_part, callbacks=callbacks)
+        chars, y = self.prepare_words(vocabulary, char_set, max_word_len)
+        callbacks = [EarlyStopping(patience=3)]
+
+        train_idx, val_idx = self.get_split(chars.shape[0], val_part)
+        chars_train = chars[train_idx]
+        y_train = y[train_idx]
+        chars_val = chars[val_idx]
+        y_val = y[val_idx]
+
+        self.model.fit(chars_train, y_train, batch_size=batch_size, epochs=100, verbose=2,
+                       validation_data=[chars_val, y_val], callbacks=callbacks)
 
     @staticmethod
-    def prepare_words(vocabulary, max_word_length):
+    def get_split(sample_counter: int, val_part: float) -> Tuple[np.array, np.array]:
+        perm = np.random.permutation(sample_counter)
+        border = int(sample_counter * (1 - val_part))
+        train_idx = perm[:border]
+        val_idx = perm[border:]
+        return train_idx, val_idx
+
+    @staticmethod
+    def prepare_words(vocabulary, char_set, max_word_length):
         chars = np.zeros((vocabulary.size(), max_word_length), dtype=np.int)
         y = np.zeros((vocabulary.size(), ), dtype=np.int)
         for i in range(vocabulary.size()):
             y[i] = i
         for i, word in enumerate(vocabulary.words):
-            word_char_indices = [CHAR_SET.index(ch) if ch in CHAR_SET else len(CHAR_SET) for ch in word][:max_word_length]
+            word_char_indices = [char_set.index(ch) if ch in char_set else len(char_set)
+                                 for ch in word][-max_word_length:]
             chars[i, -min(len(word), max_word_length):] = word_char_indices
         return chars, y
 
 
 def get_char_model(
         char_layer,
-        max_word_length,
+        max_word_length: int,
         vocabulary: WordVocabulary,
-        embeddings,
+        char_set: str,
+        embeddings: np.array,
         model_weights_path: str,
         model_config_path: str,
         batch_size: int=128,
         val_part: float=0.2,
         seed: int=42):
     """
-    :param embeddings: матрица эмбеддингов
+    Обучение или загрузка char-level функции.
+
+    :param char_layer: заданная char-level функция, которую и обучаем.
+    :param max_word_length: максимальная длина слова, по которой идёт обрезка.
+    :param vocabulary: список слов.
+    :param char_set: набор символов, для которых строятся эмбеддинги.
+    :param embeddings: матрица эмбеддингов.
     :param batch_size: размер батча.
     :param model_weights_path: путь, куда сохранять веса модели.
     :param model_config_path: путь, куда сохранять конфиг модели.
     :param val_part: доля val выборки.
-    :param seed: seed для ГПСЧ
+    :param seed: seed для ГПСЧ.
     """
     model = CharEmbeddingsModel()
     if model_config_path is not None and os.path.exists(model_config_path):
@@ -135,7 +160,7 @@ def get_char_model(
                     max_word_length=max_word_length,
                     word_embeddings=embeddings.T,
                     char_layer=char_layer)
-        model.train(vocabulary, val_part, seed, batch_size, max_word_length)
+        model.train(vocabulary, char_set, val_part, seed, batch_size, max_word_length)
         if model_config_path is not None and model_weights_path is not None:
             model.save(model_config_path, model_weights_path)
     return model.char_layer

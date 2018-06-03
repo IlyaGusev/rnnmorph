@@ -14,9 +14,6 @@ from rnnmorph.data_preparation.word_form import WordForm
 from rnnmorph.util.tqdm_open import tqdm_open
 from rnnmorph.config import TrainConfig
 
-CHAR_SET = " абвгдеёжзийклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ" \
-           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'\"!?"
-
 
 class BatchGenerator:
     """
@@ -25,7 +22,7 @@ class BatchGenerator:
 
     def __init__(self, file_names: List[str], config: TrainConfig, grammeme_vectorizer_input: GrammemeVectorizer,
                  grammeme_vectorizer_output: GrammemeVectorizer, max_word_len: int, indices: np.array,
-                 word_vocabulary, word_count: int):
+                 word_vocabulary, word_count: int, char_set: str):
         self.file_names = file_names  # type: List[str]
         # Параметры батчей.
         self.batch_size = config.external_batch_size  # type: int
@@ -33,6 +30,7 @@ class BatchGenerator:
         self.buckets = [list() for _ in range(len(self.bucket_borders))]
         self.max_word_len = max_word_len  # type: int
         self.word_vocabulary = word_vocabulary
+        self.char_set = char_set
         self.word_count = word_count  # type: int
         # Разбиение на выборки.
         self.indices = indices  # type: np.array
@@ -60,7 +58,7 @@ class BatchGenerator:
         for i, sentence in enumerate(sentences):
             word_indices, gram_vectors, char_vectors = self.get_sample(
                 [x.text for x in sentence], self.morph, self.grammeme_vectorizer_input,
-                self.max_word_len, self.word_vocabulary, self.word_count)
+                self.max_word_len, self.word_vocabulary, self.word_count, self.char_set)
             assert len(word_indices) == len(sentence) and \
                    len(gram_vectors) == len(sentence) and \
                    len(char_vectors) == len(sentence)
@@ -75,7 +73,7 @@ class BatchGenerator:
     @staticmethod
     def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
                    grammeme_vectorizer: GrammemeVectorizer, max_word_len: int,
-                   word_vocabulary, word_count: int):
+                   word_vocabulary, word_count: int, char_set: str):
         """
         Получние признаков для отдельного предложения.
 
@@ -94,7 +92,7 @@ class BatchGenerator:
             gram_value_indices = np.zeros(grammeme_vectorizer.grammemes_count())
 
             # Индексы символов слова.
-            word_char_indices = [CHAR_SET.index(ch) if ch in CHAR_SET else len(CHAR_SET) for ch in word][:max_word_len]
+            word_char_indices = [char_set.index(ch) if ch in char_set else len(char_set) for ch in word][-max_word_len:]
             char_indices[-min(len(word), max_word_len):] = word_char_indices
             word_char_vectors.append(char_indices)
 

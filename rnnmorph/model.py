@@ -8,11 +8,11 @@ import os
 import numpy as np
 import pymorphy2
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
-    concatenate, Bidirectional, TimeDistributed, Dropout, Flatten, Reshape
+    concatenate, Bidirectional, TimeDistributed, Dropout
 from keras.models import Model, model_from_yaml
 from keras.optimizers import Adam
 
-from rnnmorph.batch_generator import BatchGenerator, CHAR_SET
+from rnnmorph.batch_generator import BatchGenerator
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 from rnnmorph.data_preparation.loader import Loader
@@ -26,10 +26,12 @@ class LSTMMorphoAnalysis:
         self.grammeme_vectorizer_input = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
+        self.char_set = ""
         self.model = None  # type: Model
 
     def prepare(self, gram_dump_path_input: str, gram_dump_path_output: str,
-                word_vocabulary_dump_path: str, file_names: List[str] = None) -> None:
+                word_vocabulary_dump_path: str, char_set_dump_path: str,
+                file_names: List[str] = None) -> None:
         """
         Подготовка векторизатора грамматических значений и словаря слов по корпусу.
         """
@@ -39,14 +41,25 @@ class LSTMMorphoAnalysis:
             self.grammeme_vectorizer_output.load(gram_dump_path_output)
         if os.path.exists(word_vocabulary_dump_path):
             self.word_vocabulary.load(word_vocabulary_dump_path)
+        if os.path.exists(char_set_dump_path):
+            with open(char_set_dump_path, 'r', encoding='utf-8') as f:
+                self.char_set = f.read().rstrip()
         if self.grammeme_vectorizer_input.is_empty() or \
                 self.grammeme_vectorizer_output.is_empty() or \
-                self.word_vocabulary.is_empty():
-            self.grammeme_vectorizer_input, self.grammeme_vectorizer_output, self.word_vocabulary = \
-                Loader().parse_corpora(file_names)
+                self.word_vocabulary.is_empty() or\
+                not self.char_set:
+            loader = Loader()
+            loader.parse_corpora(file_names)
+
+            self.grammeme_vectorizer_input = loader.grammeme_vectorizer_input
             self.grammeme_vectorizer_input.save(gram_dump_path_input)
+            self.grammeme_vectorizer_output = loader.grammeme_vectorizer_output
             self.grammeme_vectorizer_output.save(gram_dump_path_output)
+            self.word_vocabulary = loader.word_vocabulary
             self.word_vocabulary.save(word_vocabulary_dump_path)
+            self.char_set = loader.char_set
+            with open(char_set_dump_path, 'w', encoding='utf-8') as f:
+                f.write(self.char_set)
 
     def save(self, model_config_path: str, model_weights_path: str):
         with open(model_config_path, "w", encoding='utf-8') as f:
@@ -88,7 +101,7 @@ class LSTMMorphoAnalysis:
 
             char_layer = build_dense_chars_layer(
                 max_word_length=config.char_max_word_length,
-                char_vocab_size=len(CHAR_SET)+1,
+                char_vocab_size=len(self.char_set)+1,
                 char_emb_dim=config.char_embedding_dim,
                 hidden_dim=config.char_function_hidden_size,
                 output_dim=config.char_function_output_size,
@@ -100,7 +113,8 @@ class LSTMMorphoAnalysis:
                     embeddings=word_embeddings,
                     model_config_path=config.char_model_config_path,
                     model_weights_path=config.char_model_weights_path,
-                    vocabulary=self.word_vocabulary)
+                    vocabulary=self.word_vocabulary,
+                    char_set=self.char_set)
             chars_embedding = char_layer(chars_input)
             inputs.append(chars_input)
             embeddings.append(chars_embedding)
@@ -136,7 +150,8 @@ class LSTMMorphoAnalysis:
         else:
             outputs.append(TimeDistributed(Dense(num_of_classes, activation='softmax'))(layer))
             self.model = Model(inputs=inputs, outputs=outputs)
-            self.model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+            self.model.compile(loss='sparse_categorical_crossentropy',
+                               optimizer=Adam(clipnorm=5.), metrics=['accuracy'])
         print(self.model.summary())
 
     def train(self, file_names: List[str], train_config: TrainConfig, build_config: BuildModelConfig) -> None:
@@ -153,7 +168,8 @@ class LSTMMorphoAnalysis:
                     max_word_len=build_config.char_max_word_length,
                     indices=train_idx,
                     word_vocabulary=self.word_vocabulary,
-                    word_count=build_config.word_max_count)
+                    word_count=build_config.word_max_count,
+                    char_set=self.char_set)
             for epoch, (words, grammemes, chars, y) in enumerate(batch_generator):
                 max_sentence_length = grammemes.shape[1]
                 batch_size = train_config.num_words_in_batch // int(max_sentence_length)
@@ -177,6 +193,7 @@ class LSTMMorphoAnalysis:
     def count_samples(file_names: List[str]):
         """
         Считает количество предложений в выборке.
+
         :param file_names: файлы выборки.
         :return: количество предложений.
         """
@@ -193,6 +210,7 @@ class LSTMMorphoAnalysis:
     def get_split(sample_counter: int, val_part: float) -> Tuple[np.array, np.array]:
         """
         Выдаёт индексы предложений, которые становятся train или val выборкой.
+
         :param sample_counter: количество предложений.
         :param val_part: часть выборки, которая станет val.
         :return: индексы выборок.
@@ -206,9 +224,11 @@ class LSTMMorphoAnalysis:
     def evaluate(self, file_names, val_idx, train_config: TrainConfig, build_config: BuildModelConfig) -> None:
         """
         Оценка на val выборке.
+
         :param file_names: файлы выборки.
         :param val_idx: val индексы.
-        :param config: конфиг обучения
+        :param train_config: конфиг обучения.
+        :param build_config: конфиг модели.
         """
         word_count = 0
         word_errors = 0
@@ -222,7 +242,8 @@ class LSTMMorphoAnalysis:
             max_word_len=build_config.char_max_word_length,
             indices=val_idx,
             word_vocabulary=self.word_vocabulary,
-            word_count=build_config.word_max_count)
+            word_count=build_config.word_max_count,
+            char_set=self.char_set)
         for epoch, (words, grammemes, chars, y) in enumerate(batch_generator):
             max_sentence_length = grammemes.shape[1]
             batch_size = train_config.num_words_in_batch // max_sentence_length
@@ -256,11 +277,12 @@ class LSTMMorphoAnalysis:
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
     def predict_proba(self, sentences: List[List[str]], batch_size: int,
-                      max_word_len: int=30, word_max_count: int=10000) -> List[List[List[float]]]:
+                      build_config=BuildModelConfig()) -> List[List[List[float]]]:
         """
         Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
+
         :param sentences: массив предложений (которые являются массивом слов).
-        :param max_word_len: максимальный учитываемый размер слова.
+        :param build_config: конфиг архитектуры модели.
         :param batch_size: размер батча.
         :return: вероятности тегов.
         """
@@ -268,28 +290,40 @@ class LSTMMorphoAnalysis:
         if max_sentence_len == 0:
             return [[] for _ in sentences]
         n_samples = len(sentences)
+
+        words = np.zeros((n_samples, max_sentence_len), dtype=np.int)
         grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
                              dtype=np.float)
-        chars = np.zeros((n_samples, max_sentence_len, max_word_len), dtype=np.int)
+        chars = np.zeros((n_samples, max_sentence_len, build_config.char_max_word_length), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
             if not sentence:
                 continue
-            gram_vectors, char_vectors = BatchGenerator.get_sample(
+            word_indices, gram_vectors, char_vectors = BatchGenerator.get_sample(
                 sentence,
                 morph=self.morph,
                 grammeme_vectorizer=self.grammeme_vectorizer_input,
-                max_word_len=max_word_len,
+                max_word_len=build_config.char_max_word_length,
                 word_vocabulary=self.word_vocabulary,
-                word_count=word_max_count)
+                word_count=build_config.word_max_count,
+                char_set=self.char_set)
+            words[i, -len(sentence):] = word_indices
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
 
-        return self.model.predict([grammemes, chars], batch_size=batch_size)
+        inputs = []
+        if build_config.use_word_embeddings:
+            inputs.append(words)
+        if build_config.use_gram:
+            inputs.append(grammemes)
+        if build_config.use_chars:
+            inputs.append(chars)
+        return self.model.predict(inputs, batch_size=batch_size)
 
     def predict(self, sentences: List[List[str]], batch_size: int) -> List[List[int]]:
         """
         Предсказание полных PoS-тегов по предложению.
+
         :param sentences: массив предложений (которые являются массивом слов).
         :param batch_size: размер батча.
         :return: массив тегов.

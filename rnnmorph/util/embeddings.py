@@ -37,12 +37,18 @@ def shrink_w2v(input_filename, border, output_filename, print_step=10000):
 
 
 def load_embeddings(embeddings_file_name: str, vocabulary: WordVocabulary, word_count: int):
-    w2v = KeyedVectors.load_word2vec_format(embeddings_file_name, binary=False)
-    matrix = np.random.rand(min(vocabulary.size(), word_count), w2v.vector_size) * 0.05
-    unknown_words_count = 0
-    for i, word in enumerate(vocabulary.words[:word_count]):
-        if word in w2v:
-            matrix[i] = w2v[word]
-        else:
-            unknown_words_count += 1
-    return matrix, unknown_words_count
+    with open(embeddings_file_name, "r", encoding='utf-8') as f:
+        line = next(f)
+        dimension = int(line.strip().split()[1])
+        matrix = np.random.rand(min(vocabulary.size(), word_count), dimension) * 0.05
+        words = {word: i for i, word in enumerate(vocabulary.words[:word_count])}
+        for line in f:
+            try:
+                word = line.strip().split()[0]
+                embedding = [float(i) for i in line.strip().split()[1:]]
+                index = words.get(word)
+                if index is not None:
+                    matrix[index] = embedding
+            except ValueError or UnicodeDecodeError:
+                continue
+        return matrix

@@ -21,6 +21,7 @@ class Loader(object):
         self.grammeme_vectorizer_input = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
+        self.char_set = set()
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
         self.converter = converters.converter('opencorpora-int', 'ud14')
 
@@ -40,7 +41,7 @@ class Loader(object):
         self.grammeme_vectorizer_input.init_possible_vectors()
         self.grammeme_vectorizer_output.init_possible_vectors()
         self.word_vocabulary.sort()
-        return self.grammeme_vectorizer_input, self.grammeme_vectorizer_output, self.word_vocabulary
+        self.char_set = " " + "".join(self.char_set).replace(" ", "")
 
     def __process_line(self, line: str) -> None:
         """
@@ -51,6 +52,8 @@ class Loader(object):
         text, lemma, pos_tag, grammemes = line.strip().split("\t")[0:4]
         # Заполняем словарь.
         self.word_vocabulary.add_word(text.lower())
+        # Заполняем набор символов
+        self.char_set |= {ch for ch in text}
         # Заполняем набор возможных выходных тегов.
         self.grammeme_vectorizer_output.add_grammemes(pos_tag, grammemes)
         # Заполняем набор возможных входных тегов.

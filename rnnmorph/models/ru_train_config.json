@@ -1,0 +1,31 @@
+{
+    "dump_model_freq": 1,
+    "epochs_num": 10,
+    "external_batch_size": 10000,
+    "num_words_in_batch": 2000,
+    "random_seed": 42,
+    "rewrite_model": false,
+    "sentence_len_groups": [
+        [
+            1,
+            6
+        ],
+        [
+            7,
+            14
+        ],
+        [
+            15,
+            25
+        ],
+        [
+            26,
+            40
+        ],
+        [
+            40,
+            50
+        ]
+    ],
+    "val_part": 0.05
+}

@@ -100,5 +100,4 @@ ENV/
 # mypy
 .mypy_cache/
 
-*.pickle
 *.idea

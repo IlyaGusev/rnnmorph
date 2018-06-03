@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
+# Автор: Гусев Илья
+# Описание: Конфиги для архитектуры модели и процесса обучения.
+
 import json
 import copy
-from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, \
-    RU_MORPH_GRAMMEMES_DICT_INPUT, RU_MORPH_GRAMMEMES_DICT_OUTPUT, RU_MORPH_DEFAULT_CHAR_MODEL_CONFIG, \
-    RU_MORPH_DEFAULT_CHAR_MODEL_WEIGHTS, RU_MORPH_WORD_VOCABULARY
+from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
+    RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_CHAR_MODEL_CONFIG, \
+    RU_CHAR_MODEL_WEIGHTS, RU_WORD_VOCABULARY, RU_CHAR_SET
 
 
 class BuildModelConfig(object):
@@ -22,8 +26,8 @@ class BuildModelConfig(object):
         self.word_embedding_dropout = 0.2
         self.word_max_count = 100000
         self.use_trained_char_embeddings = True
-        self.char_model_config_path = RU_MORPH_DEFAULT_CHAR_MODEL_CONFIG
-        self.char_model_weights_path = RU_MORPH_DEFAULT_CHAR_MODEL_WEIGHTS
+        self.char_model_config_path = RU_CHAR_MODEL_CONFIG
+        self.char_model_weights_path = RU_CHAR_MODEL_WEIGHTS
 
         self.rnn_hidden_size = 128  # размер состояния у LSTM слоя. (у BiLSTM = rnn_hidden_size * 2).
         self.rnn_n_layers = 2
@@ -33,7 +37,7 @@ class BuildModelConfig(object):
         self.dense_size = 128  # размер выхода скрытого слоя.
         self.dense_dropout = 0.3
 
-        self.use_crf = True
+        self.use_crf = False
 
     def save(self, filename):
         with open(filename, 'w', encoding='utf-8') as f:
@@ -48,13 +52,14 @@ class BuildModelConfig(object):
 
 class TrainConfig(object):
     def __init__(self):
-        self.model_config_path = RU_MORPH_DEFAULT_MODEL_CONFIG
-        self.model_weights_path = RU_MORPH_DEFAULT_MODEL_WEIGHTS
-        self.gramm_dict_input = RU_MORPH_GRAMMEMES_DICT_INPUT
-        self.gramm_dict_output = RU_MORPH_GRAMMEMES_DICT_OUTPUT
-        self.word_vocabulary = RU_MORPH_WORD_VOCABULARY
+        self.model_config_path = RU_MODEL_CONFIG
+        self.model_weights_path = RU_MODEL_WEIGHTS
+        self.gramm_dict_input = RU_GRAMMEMES_DICT_INPUT
+        self.gramm_dict_output = RU_GRAMMEMES_DICT_OUTPUT
+        self.word_vocabulary = RU_WORD_VOCABULARY
+        self.char_set_path = RU_CHAR_SET
         self.rewrite_model = True
-        self.external_batch_size = 2000  # размер батча, который читается из файлов.
+        self.external_batch_size = 10000  # размер батча, который читается из файлов.
         self.num_words_in_batch = 2000  # количество слов в минибатче.
         self.sentence_len_groups = ((1, 6), (7, 14), (15, 25), (26, 40), (40, 50))  # разбиение на бакеты
         self.val_part = 0.05  # на какой части выборки оценивать качество.

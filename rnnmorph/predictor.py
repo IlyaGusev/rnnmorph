@@ -10,8 +10,10 @@ from russian_tagsets import converters
 from rnnmorph.model import LSTMMorphoAnalysis
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
-from rnnmorph.settings import RU_MORPH_DEFAULT_MODEL_CONFIG, RU_MORPH_DEFAULT_MODEL_WEIGHTS, \
-    RU_MORPH_GRAMMEMES_DICT_INPUT, RU_MORPH_GRAMMEMES_DICT_OUTPUT
+from rnnmorph.config import BuildModelConfig
+from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
+    RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_WORD_VOCABULARY, \
+    RU_CHAR_SET, RU_BUILD_CONFIG
 
 
 class Predictor:
@@ -59,14 +61,20 @@ class RNNMorphPredictor(Predictor):
     """
     POS-теггер на освное RNN.
     """
-    def __init__(self, model_config_path: str=RU_MORPH_DEFAULT_MODEL_CONFIG,
-                 model_weights_path: str=RU_MORPH_DEFAULT_MODEL_WEIGHTS,
-                 gramm_dict_input: str=RU_MORPH_GRAMMEMES_DICT_INPUT,
-                 gramm_dict_output: str=RU_MORPH_GRAMMEMES_DICT_OUTPUT):
+    def __init__(self,
+                 model_config_path: str=RU_MODEL_CONFIG,
+                 model_weights_path: str=RU_MODEL_WEIGHTS,
+                 gramm_dict_input: str=RU_GRAMMEMES_DICT_INPUT,
+                 gramm_dict_output: str=RU_GRAMMEMES_DICT_OUTPUT,
+                 word_vocabulary: str=RU_WORD_VOCABULARY,
+                 char_set_path: str=RU_CHAR_SET,
+                 build_config: str=RU_BUILD_CONFIG):
         self.model = LSTMMorphoAnalysis()
-        self.model.prepare(gramm_dict_input, gramm_dict_output)
+        self.model.prepare(gramm_dict_input, gramm_dict_output, word_vocabulary, char_set_path)
         self.model.load(model_config_path, model_weights_path)
         self.morph = MorphAnalyzer()
+        self.build_config = BuildModelConfig()
+        self.build_config.load(build_config)
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
         tags = self.model.predict([words], batch_size=1)[0]
@@ -80,13 +88,13 @@ class RNNMorphPredictor(Predictor):
         return answers
 
     def predict_sentence_tags_proba(self, words: List[str]) -> List[List[Tuple[float, WordFormOut]]]:
-        words_probabilities = self.model.predict_proba([words], batch_size=1)[0]
+        words_probabilities = self.model.predict_proba([words], 1, self.build_config)[0]
         return self.__get_sentence_forms_probs(words, words_probabilities)
 
     def predict_sentences_tags_proba(self, sentences: List[List[str]],
                                      batch_size: int=64) -> List[List[List[Tuple[float, WordFormOut]]]]:
         result = []
-        sentences_probabilities = self.model.predict_proba(sentences, batch_size)
+        sentences_probabilities = self.model.predict_proba(sentences, batch_size, self.build_config)
         for sentence, words_probabilities in zip(sentences, sentences_probabilities):
             result.append(self.__get_sentence_forms_probs(sentence, words_probabilities))
         return result
