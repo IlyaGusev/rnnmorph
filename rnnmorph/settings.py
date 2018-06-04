@@ -1,5 +1,7 @@
 from pkg_resources import resource_filename
 
+RU_TRAIN_MODEL_CONFIG = resource_filename(__name__, "models/ru_train_model.yaml")
+RU_TRAIN_MODEL_WEIGHTS = resource_filename(__name__, "models/ru_train_model.h5")
 RU_MODEL_CONFIG = resource_filename(__name__, "models/ru_model.yaml")
 RU_MODEL_WEIGHTS = resource_filename(__name__, "models/ru_model.h5")
 RU_GRAMMEMES_DICT_INPUT = resource_filename(__name__, "models/ru_gram_input.json")

@@ -12,7 +12,7 @@ from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm
 from rnnmorph.util.tqdm_open import tqdm_open
-from rnnmorph.config import TrainConfig
+from rnnmorph.config import TrainConfig, BuildModelConfig
 
 
 class BatchGenerator:
@@ -21,17 +21,16 @@ class BatchGenerator:
     """
 
     def __init__(self, file_names: List[str], config: TrainConfig, grammeme_vectorizer_input: GrammemeVectorizer,
-                 grammeme_vectorizer_output: GrammemeVectorizer, max_word_len: int, indices: np.array,
-                 word_vocabulary, word_count: int, char_set: str):
+                 grammeme_vectorizer_output: GrammemeVectorizer, indices: np.array, word_vocabulary, char_set: str,
+                 build_config: BuildModelConfig):
         self.file_names = file_names  # type: List[str]
         # Параметры батчей.
         self.batch_size = config.external_batch_size  # type: int
         self.bucket_borders = config.sentence_len_groups  # type: List[Tuple[int]]
         self.buckets = [list() for _ in range(len(self.bucket_borders))]
-        self.max_word_len = max_word_len  # type: int
+        self.build_config = build_config
         self.word_vocabulary = word_vocabulary
         self.char_set = char_set
-        self.word_count = word_count  # type: int
         # Разбиение на выборки.
         self.indices = indices  # type: np.array
         # Подготовленные словари.
@@ -39,7 +38,7 @@ class BatchGenerator:
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
 
-    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[np.array, np.array, np.array, np.array]:
+    def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[List, List]:
         """
         Преобразование предложений в признаки и ответы.
 
@@ -50,15 +49,19 @@ class BatchGenerator:
         grammemes_count = self.grammeme_vectorizer_input.grammemes_count()
         sentence_max_len = max([len(sentence) for sentence in sentences])
 
+        data = []
+        target = []
+
         words = np.zeros((n,  sentence_max_len), dtype=np.int)
         grammemes = np.zeros((n, sentence_max_len, grammemes_count), dtype=np.float)
-        chars = np.zeros((n, sentence_max_len, self.max_word_len), dtype=np.int)
+        chars = np.zeros((n, sentence_max_len, self.build_config.char_max_word_length), dtype=np.int)
         y = np.zeros((n, sentence_max_len), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
             word_indices, gram_vectors, char_vectors = self.get_sample(
                 [x.text for x in sentence], self.morph, self.grammeme_vectorizer_input,
-                self.max_word_len, self.word_vocabulary, self.word_count, self.char_set)
+                self.build_config.char_max_word_length, self.word_vocabulary, self.build_config.word_max_count,
+                self.char_set)
             assert len(word_indices) == len(sentence) and \
                    len(gram_vectors) == len(sentence) and \
                    len(char_vectors) == len(sentence)
@@ -67,8 +70,22 @@ class BatchGenerator:
             grammemes[i, -len(sentence):] = gram_vectors
             chars[i, -len(sentence):] = char_vectors
             y[i, -len(sentence):] = [word.gram_vector_index + 1 for word in sentence]
+        if self.build_config.use_word_embeddings:
+            data.append(words)
+        if self.build_config.use_gram:
+            data.append(grammemes)
+        if self.build_config.use_chars:
+            data.append(chars)
         y = y.reshape(y.shape[0], y.shape[1], 1)
-        return words, grammemes, chars, y
+        target.append(y)
+        if self.build_config.use_pos_lm:
+            y_next = np.zeros_like(y)
+            y_next[:, :-1] = y[:, 1:]
+            y_prev = np.zeros_like(y)
+            y_prev[:, 1:] = y[:, :-1]
+            target.append(y_next.reshape(y.shape[0], y.shape[1], 1))
+            target.append(y_prev.reshape(y.shape[0], y.shape[1], 1))
+        return data, target
 
     @staticmethod
     def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
@@ -81,6 +98,9 @@ class BatchGenerator:
         :param morph: морфология.
         :param grammeme_vectorizer: грамматический словарь. 
         :param max_word_len: количество обрабатываемых букв в слове.
+        :param word_vocabulary: список слов.
+        :param word_count: максимальный индекс слова.
+        :param char_set: список возможных символов, для которых есть эмбеддинги.
         :return: индексы слов, грамматические векторы, индексы символов.
         """
         to_ud = converters.converter('opencorpora-int', 'ud14')

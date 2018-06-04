@@ -37,7 +37,7 @@ class TestLSTMMorph(unittest.TestCase):
         self.__asert_parse(forms[0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
         self.__asert_parse(forms[1], 'VERB', 'мыть',
                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
-        self.__asert_parse(forms[2], 'NOUN', 'рама', 'Case=Dat|Gender=Masc|Number=Sing')
+        self.__asert_parse(forms[2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
 
     def test_sentences_analysis1(self):
         forms = self.predictor.predict_sentences_tags([["косил", "косой", "косой", "косой"], ["мама", "мыла", "раму"]])
@@ -48,7 +48,7 @@ class TestLSTMMorph(unittest.TestCase):
         self.__asert_parse(forms[1][0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
         self.__asert_parse(forms[1][1], 'VERB', 'мыть',
                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
-        self.__asert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Dat|Gender=Masc|Number=Sing')
+        self.__asert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
     
     def test_empty_sentences(self):
         forms = self.predictor.predict_sentences_tags([[]])

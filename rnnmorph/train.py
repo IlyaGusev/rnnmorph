@@ -16,12 +16,14 @@ def train(file_names: List[str], build_config: BuildModelConfig, train_config: T
     model.prepare(train_config.gramm_dict_input, train_config.gramm_dict_output,
                   train_config.word_vocabulary, train_config.char_set_path, file_names)
     if os.path.exists(train_config.model_config_path) and not train_config.rewrite_model:
-        model.load(train_config.model_config_path, train_config.model_weights_path)
-        print(model.model.summary())
+        model.load(train_config.train_model_config_path, train_config.train_model_weights_path, build_config,
+                   train_config.model_config_path, train_config.model_weights_path)
+        print(model.eval_model.summary())
     else:
-        embeddings = load_embeddings(
-            "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt",
-            model.word_vocabulary, build_config.word_max_count)
+        # embeddings = load_embeddings(
+        #     "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt",
+        #     model.word_vocabulary, build_config.word_max_count)
+        embeddings = None
         model.build(build_config, embeddings)
     model.train(file_names, train_config, build_config)
 

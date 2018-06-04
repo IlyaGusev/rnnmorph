@@ -3,7 +3,6 @@
 # Описание: Вспомогательные функции для работы с словными эмбеддингами.
 
 import numpy as np
-from gensim.models import KeyedVectors
 
 from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 

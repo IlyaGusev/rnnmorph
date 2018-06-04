@@ -13,7 +13,7 @@ from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
 from rnnmorph.config import BuildModelConfig
 from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
     RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_WORD_VOCABULARY, \
-    RU_CHAR_SET, RU_BUILD_CONFIG
+    RU_CHAR_SET, RU_BUILD_CONFIG, RU_TRAIN_MODEL_CONFIG, RU_TRAIN_MODEL_WEIGHTS
 
 
 class Predictor:
@@ -62,6 +62,8 @@ class RNNMorphPredictor(Predictor):
     POS-теггер на освное RNN.
     """
     def __init__(self,
+                 train_model_config_path: str = RU_TRAIN_MODEL_CONFIG,
+                 train_model_weights_path: str = RU_TRAIN_MODEL_WEIGHTS,
                  model_config_path: str=RU_MODEL_CONFIG,
                  model_weights_path: str=RU_MODEL_WEIGHTS,
                  gramm_dict_input: str=RU_GRAMMEMES_DICT_INPUT,
@@ -69,19 +71,20 @@ class RNNMorphPredictor(Predictor):
                  word_vocabulary: str=RU_WORD_VOCABULARY,
                  char_set_path: str=RU_CHAR_SET,
                  build_config: str=RU_BUILD_CONFIG):
-        self.model = LSTMMorphoAnalysis()
-        self.model.prepare(gramm_dict_input, gramm_dict_output, word_vocabulary, char_set_path)
-        self.model.load(model_config_path, model_weights_path)
-        self.morph = MorphAnalyzer()
         self.build_config = BuildModelConfig()
         self.build_config.load(build_config)
+        self.model = LSTMMorphoAnalysis()
+        self.model.prepare(gramm_dict_input, gramm_dict_output, word_vocabulary, char_set_path)
+        self.model.load(train_model_config_path, train_model_weights_path, self.build_config,
+                        model_config_path, model_weights_path)
+        self.morph = MorphAnalyzer()
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
-        tags = self.model.predict([words], batch_size=1)[0]
+        tags = self.model.predict([words], 1, self.build_config)[0]
         return [self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)]
 
     def predict_sentences_tags(self, sentences: List[List[str]], batch_size: int=64) -> List[List[WordFormOut]]:
-        sentences_tags = self.model.predict(sentences, batch_size)
+        sentences_tags = self.model.predict(sentences, batch_size, self.build_config)
         answers = []
         for tags, words in zip(sentences_tags, sentences):
             answers.append([self.__compose_out_form(tag_num, word) for tag_num, word in zip(tags, words)])

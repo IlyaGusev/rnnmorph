@@ -6,7 +6,8 @@ import json
 import copy
 from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
     RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_CHAR_MODEL_CONFIG, \
-    RU_CHAR_MODEL_WEIGHTS, RU_WORD_VOCABULARY, RU_CHAR_SET
+    RU_CHAR_MODEL_WEIGHTS, RU_WORD_VOCABULARY, RU_CHAR_SET, RU_TRAIN_MODEL_CONFIG, \
+    RU_TRAIN_MODEL_WEIGHTS
 
 
 class BuildModelConfig(object):
@@ -29,6 +30,7 @@ class BuildModelConfig(object):
         self.char_model_config_path = RU_CHAR_MODEL_CONFIG
         self.char_model_weights_path = RU_CHAR_MODEL_WEIGHTS
 
+        self.rnn_input_size = 200
         self.rnn_hidden_size = 128  # размер состояния у LSTM слоя. (у BiLSTM = rnn_hidden_size * 2).
         self.rnn_n_layers = 2
         self.rnn_dropout = 0.3
@@ -38,6 +40,7 @@ class BuildModelConfig(object):
         self.dense_dropout = 0.3
 
         self.use_crf = False
+        self.use_pos_lm = True
 
     def save(self, filename):
         with open(filename, 'w', encoding='utf-8') as f:
@@ -54,6 +57,8 @@ class TrainConfig(object):
     def __init__(self):
         self.model_config_path = RU_MODEL_CONFIG
         self.model_weights_path = RU_MODEL_WEIGHTS
+        self.train_model_config_path = RU_TRAIN_MODEL_CONFIG
+        self.train_model_weights_path = RU_TRAIN_MODEL_WEIGHTS
         self.gramm_dict_input = RU_GRAMMEMES_DICT_INPUT
         self.gramm_dict_output = RU_GRAMMEMES_DICT_OUTPUT
         self.word_vocabulary = RU_WORD_VOCABULARY
