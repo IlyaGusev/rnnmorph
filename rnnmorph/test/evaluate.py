@@ -150,9 +150,13 @@ def measure(corr_file, test_file, measure_lemmas, dump_file):
             for (first, second), count in sorted(
                     quality['incorrect_matches'].items(), key=(lambda x: x[1]), reverse=True):
                 fout.write("{}\t{}\n{}\n\n".format(first, count, second))
-    Accuracy = namedtuple('Accuracy', 'tag_accuracy sentence_accuracy full_tag_accuracy full_sentence_accuracy')
+    Accuracy = namedtuple('Accuracy', 'tag_accuracy sentence_accuracy full_tag_accuracy full_sentence_accuracy '
+                                      'correct_tags total_tags correct_sentences total_sentences')
     return Accuracy(tag_accuracy=tag_accuracy, sentence_accuracy=sentence_accuracy,
-                    full_tag_accuracy=full_accuracy, full_sentence_accuracy=full_sentence_accuracy)
+                    full_tag_accuracy=full_accuracy, full_sentence_accuracy=full_sentence_accuracy,
+                    correct_tags=correct_tags, total_tags=total_tags,
+                    correct_sentences=correct_sents_by_tags, total_sentences=total_sents)
+
 
 if __name__ == "__main__":
     measure_lemmas, dump_file = False, None
