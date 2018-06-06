@@ -39,7 +39,7 @@ def load_embeddings(embeddings_file_name: str, vocabulary: WordVocabulary, word_
     with open(embeddings_file_name, "r", encoding='utf-8') as f:
         line = next(f)
         dimension = int(line.strip().split()[1])
-        matrix = np.random.rand(min(vocabulary.size(), word_count), dimension) * 0.05
+        matrix = np.random.rand(min(vocabulary.size(), word_count+1), dimension) * 0.05
         words = {word: i for i, word in enumerate(vocabulary.words[:word_count])}
         for line in f:
             try:

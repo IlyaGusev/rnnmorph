@@ -83,35 +83,40 @@ class LSTMMorphoAnalysis:
             f.write(self.model.to_yaml())
         self.model.save_weights(model_weights_path)
 
-    def load(self, model_config_path: str, model_weights_path: str, config: BuildModelConfig,
-             eval_model_config_path: str, eval_model_weights_path: str) -> None:
+    def load(self, config: BuildModelConfig,
+             eval_model_config_path: str, eval_model_weights_path: str,
+             model_config_path: str=None, model_weights_path: str=None, inherit_eval=True) -> None:
         with open(eval_model_config_path, "r", encoding='utf-8') as f:
             self.eval_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
         self.eval_model.load_weights(eval_model_weights_path)
-        self.eval_model.compile(optimizer=Adam(clipnorm=5.), loss='sparse_categorical_crossentropy',
-                                metrics=['accuracy'])
+        if model_config_path is not None and model_weights_path is not None:
+            with open(model_config_path, "r", encoding='utf-8') as f:
+                self.model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
+            self.model.load_weights(model_weights_path)
 
-        with open(model_config_path, "r", encoding='utf-8') as f:
-            self.model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
-        self.model.load_weights(model_weights_path)
+            loss = {}
+            metrics = {}
+            if config.use_crf:
+                out_layer_name = 'crf'
+                loss[out_layer_name] = self.model.layers[-1].loss_function
+                metrics[out_layer_name] = self.model.layers[-1].accuracy
+            else:
+                out_layer_name = 'main_pred'
+                loss[out_layer_name] = 'sparse_categorical_crossentropy'
+                metrics[out_layer_name] = 'accuracy'
 
-        loss = {}
-        metrics = {}
-        if config.use_crf:
-            out_layer_name = 'crf'
-            loss[out_layer_name] = self.model.layers[-1].loss_function
-            metrics[out_layer_name] = self.model.layers[-1].accuracy
-        else:
-            out_layer_name = 'main_pred'
-            loss[out_layer_name] = 'sparse_categorical_crossentropy'
-            metrics[out_layer_name] = 'accuracy'
+            if config.use_pos_lm:
+                prev_layer_name = 'shifted_pred_prev'
+                next_layer_name = 'shifted_pred_next'
+                loss[prev_layer_name] = loss[next_layer_name] = 'sparse_categorical_crossentropy'
+                metrics[prev_layer_name] = metrics[next_layer_name] = 'accuracy'
+            self.model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
 
-        if config.use_pos_lm:
-            prev_layer_name = 'shifted_pred_prev'
-            next_layer_name = 'shifted_pred_next'
-            loss[prev_layer_name] = loss[next_layer_name] = 'sparse_categorical_crossentropy'
-            metrics[prev_layer_name] = metrics[next_layer_name] = 'accuracy'
-        self.model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
+            if inherit_eval:
+                self.eval_model = Model(inputs=self.model.inputs, outputs=self.model.outputs[0])
+                self.eval_model.compile(Adam(clipnorm=5.),
+                                        loss='sparse_categorical_crossentropy',
+                                        metrics=['accuracy'])
 
     def build(self, config: BuildModelConfig, word_embeddings=None):
         """
@@ -210,11 +215,21 @@ class LSTMMorphoAnalysis:
             prev_layer_name = 'shifted_pred_prev'
             next_layer_name = 'shifted_pred_next'
             prev_layer = Dense(num_of_classes, activation='softmax', name=prev_layer_name)
-            outputs.append(prev_layer(Dense(config.dense_size, activation='relu')(lstm_backward_1)))
             next_layer = Dense(num_of_classes, activation='softmax', name=next_layer_name)
+            outputs.append(prev_layer(Dense(config.dense_size, activation='relu')(lstm_backward_1)))
             outputs.append(next_layer(Dense(config.dense_size, activation='relu')(lstm_forward_1)))
             loss[prev_layer_name] = loss[next_layer_name] = 'sparse_categorical_crossentropy'
             metrics[prev_layer_name] = metrics[next_layer_name] = 'accuracy'
+
+        if config.use_word_lm:
+            out_layer_name = 'out_embedding'
+            out_embedding = Dense(word_embeddings.shape[0],
+                                  weights=[word_embeddings.T, np.zeros(word_embeddings.shape[0])],
+                                  activation='softmax', name=out_layer_name, trainable=False)
+            outputs.append(out_embedding(Dense(word_embeddings.shape[1], activation='relu')(lstm_backward_1)))
+            outputs.append(out_embedding(Dense(word_embeddings.shape[1], activation='relu')(lstm_forward_1)))
+            loss[out_layer_name] = 'sparse_categorical_crossentropy'
+            metrics[out_layer_name] = 'accuracy'
 
         self.model = Model(inputs=inputs, outputs=outputs)
         self.model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)

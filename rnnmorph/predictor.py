@@ -75,8 +75,8 @@ class RNNMorphPredictor(Predictor):
         self.build_config.load(build_config)
         self.model = LSTMMorphoAnalysis()
         self.model.prepare(gramm_dict_input, gramm_dict_output, word_vocabulary, char_set_path)
-        self.model.load(train_model_config_path, train_model_weights_path, self.build_config,
-                        model_config_path, model_weights_path)
+        self.model.load(self.build_config, model_config_path, model_weights_path,
+                        train_model_config_path, train_model_weights_path)
         self.morph = MorphAnalyzer()
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:

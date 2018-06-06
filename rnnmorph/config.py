@@ -25,7 +25,7 @@ class BuildModelConfig(object):
 
         self.use_word_embeddings = False
         self.word_embedding_dropout = 0.2
-        self.word_max_count = 100000
+        self.word_max_count = 10000
         self.use_trained_char_embeddings = True
         self.char_model_config_path = RU_CHAR_MODEL_CONFIG
         self.char_model_weights_path = RU_CHAR_MODEL_WEIGHTS
@@ -41,6 +41,10 @@ class BuildModelConfig(object):
 
         self.use_crf = False
         self.use_pos_lm = True
+        self.use_word_lm = False
+
+        if self.use_word_lm:
+            assert not self.use_word_embeddings
 
     def save(self, filename):
         with open(filename, 'w', encoding='utf-8') as f:

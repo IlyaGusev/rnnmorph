@@ -79,12 +79,19 @@ class BatchGenerator:
         y = y.reshape(y.shape[0], y.shape[1], 1)
         target.append(y)
         if self.build_config.use_pos_lm:
-            y_next = np.zeros_like(y)
-            y_next[:, :-1] = y[:, 1:]
             y_prev = np.zeros_like(y)
-            y_prev[:, 1:] = y[:, :-1]
-            target.append(y_next.reshape(y.shape[0], y.shape[1], 1))
+            y_prev[:, :-1] = y[:, 1:]
             target.append(y_prev.reshape(y.shape[0], y.shape[1], 1))
+            y_next = np.zeros_like(y)
+            y_next[:, 1:] = y[:, :-1]
+            target.append(y_next.reshape(y.shape[0], y.shape[1], 1))
+        if self.build_config.use_word_lm:
+            words_prev = np.zeros_like(words)
+            words_prev[:, :-1] = words[:, 1:]
+            target.append(words_prev.reshape(words.shape[0], words.shape[1], 1))
+            words_next = np.zeros_like(words)
+            words_next[:, 1:] = words[:, :-1]
+            target.append(words_next.reshape(words.shape[0], words.shape[1], 1))
         return data, target
 
     @staticmethod

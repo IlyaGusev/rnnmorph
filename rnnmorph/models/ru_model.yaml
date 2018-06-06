@@ -471,7 +471,7 @@ config:
         - 0
         - {}
     name: main_pred
-  name: model_3
+  name: model_1
   output_layers:
   - [main_pred, 0, 0]
 keras_version: 2.1.4

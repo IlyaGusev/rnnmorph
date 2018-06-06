@@ -18,5 +18,7 @@
     "use_trained_char_embeddings": true,
     "use_word_embeddings": false,
     "word_embedding_dropout": 0.2,
-    "word_max_count": 100000
+    "word_max_count": 100000,
+    "use_word_lm": false,
+    "use_pos_lm": true
 }
