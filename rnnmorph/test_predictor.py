@@ -17,15 +17,15 @@ class TestLSTMMorph(unittest.TestCase):
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         cls.predictor = RNNMorphPredictor()
 
-    def __asert_parse(self, parse, pos, normal_form, tag):
+    def __assert_parse(self, parse, pos, normal_form, tag):
         self.assertEqual(parse.pos, pos)
         self.assertEqual(parse.normal_form, normal_form)
         self.assertEqual(parse.tag, tag)
 
     def test_sentence_analysis1(self):
         forms = self.predictor.predict_sentence_tags(["косил", "косой", "косой", "косой"])
-        self.__asert_parse(forms[0], 'VERB', 'косить',
-                           'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
+        self.__assert_parse(forms[0], 'VERB', 'косить',
+                            'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.assertIn(1, forms[0].vector)
     
     def test_empty_sentence(self):
@@ -34,21 +34,21 @@ class TestLSTMMorph(unittest.TestCase):
 
     def test_sentence_analysis2(self):
         forms = self.predictor.predict_sentence_tags(["мама", "мыла", "раму"])
-        self.__asert_parse(forms[0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
-        self.__asert_parse(forms[1], 'VERB', 'мыть',
-                           'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
-        self.__asert_parse(forms[2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
+        self.__assert_parse(forms[0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
+        self.__assert_parse(forms[1], 'VERB', 'мыть',
+                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
+        self.__assert_parse(forms[2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
 
     def test_sentences_analysis1(self):
         forms = self.predictor.predict_sentences_tags([["косил", "косой", "косой", "косой"], ["мама", "мыла", "раму"]])
 
-        self.__asert_parse(forms[0][0], 'VERB', 'косить',
-                           'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
+        self.__assert_parse(forms[0][0], 'VERB', 'косить',
+                            'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
 
-        self.__asert_parse(forms[1][0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
-        self.__asert_parse(forms[1][1], 'VERB', 'мыть',
-                           'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
-        self.__asert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
+        self.__assert_parse(forms[1][0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
+        self.__assert_parse(forms[1][1], 'VERB', 'мыть',
+                            'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
+        self.__assert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
     
     def test_empty_sentences(self):
         forms = self.predictor.predict_sentences_tags([[]])
