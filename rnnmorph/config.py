@@ -68,13 +68,13 @@ class TrainConfig(object):
         self.word_vocabulary = RU_WORD_VOCABULARY
         self.char_set_path = RU_CHAR_SET
         self.rewrite_model = True
-        self.external_batch_size = 10000  # размер батча, который читается из файлов.
-        self.num_words_in_batch = 2000  # количество слов в минибатче.
+        self.external_batch_size = 5000  # размер батча, который читается из файлов.
+        self.batch_size = 256  # размер минибатча.
         self.sentence_len_groups = ((1, 6), (7, 14), (15, 25), (26, 40), (40, 50))  # разбиение на бакеты
         self.val_part = 0.05  # на какой части выборки оценивать качество.
         self.epochs_num = 50  # количество эпох.
         self.dump_model_freq = 1  # насколько часто сохранять модель (1 = каждый батч).
-        self.random_seed = 42  # зерно для случайного генератора.
+        self.random_seed = 43  # зерно для случайного генератора.
 
     def save(self, filename):
         with open(filename, 'w', encoding='utf-8') as f:

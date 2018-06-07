@@ -255,9 +255,7 @@ class LSTMMorphoAnalysis:
                     word_vocabulary=self.word_vocabulary,
                     char_set=self.char_set)
             for epoch, (inputs, target) in enumerate(batch_generator):
-                max_sentence_length = inputs[0].shape[1]
-                batch_size = train_config.num_words_in_batch // int(max_sentence_length)
-                self.model.fit(inputs, target, batch_size=batch_size, epochs=1, verbose=2)
+                self.model.fit(inputs, target, batch_size=train_config.batch_size, epochs=1, verbose=2)
                 if epoch != 0 and epoch % train_config.dump_model_freq == 0:
                     self.save(train_config.train_model_config_path, train_config.train_model_weights_path,
                               train_config.model_config_path, train_config.model_weights_path)
@@ -322,9 +320,7 @@ class LSTMMorphoAnalysis:
             word_vocabulary=self.word_vocabulary,
             char_set=self.char_set)
         for epoch, (inputs, target) in enumerate(batch_generator):
-            max_sentence_length = inputs[0].shape[1]
-            batch_size = train_config.num_words_in_batch // max_sentence_length
-            predicted_y = self.eval_model.predict(inputs, batch_size=batch_size, verbose=0)
+            predicted_y = self.eval_model.predict(inputs, batch_size=train_config.batch_size, verbose=0)
             for i, sentence in enumerate(target[0]):
                 sentence_has_errors = False
                 count_zero = sum([1 for num in sentence if num == [0]])

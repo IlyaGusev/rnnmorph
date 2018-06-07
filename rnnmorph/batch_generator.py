@@ -159,13 +159,16 @@ class BatchGenerator:
                 for line in f:
                     line = line.strip()
                     if len(line) == 0:
-                        if i in self.indices:
-                            for index, bucket in enumerate(self.buckets):
-                                if self.bucket_borders[index][0] <= len(last_sentence) < self.bucket_borders[index][1]:
-                                    bucket.append(last_sentence)
-                                if len(bucket) >= self.batch_size:
-                                    yield self.__to_tensor(bucket)
-                                    self.buckets[index] = []
+                        if i not in self.indices:
+                            last_sentence = []
+                            i += 1
+                            continue
+                        for index, bucket in enumerate(self.buckets):
+                            if self.bucket_borders[index][0] <= len(last_sentence) < self.bucket_borders[index][1]:
+                                bucket.append(last_sentence)
+                            if len(bucket) >= self.batch_size:
+                                yield self.__to_tensor(bucket)
+                                self.buckets[index] = []
                         last_sentence = []
                         i += 1
                     else:
