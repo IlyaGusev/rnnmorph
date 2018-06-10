@@ -4,10 +4,6 @@
 
 import json
 import copy
-from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
-    RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_CHAR_MODEL_CONFIG, \
-    RU_CHAR_MODEL_WEIGHTS, RU_WORD_VOCABULARY, RU_CHAR_SET, RU_TRAIN_MODEL_CONFIG, \
-    RU_TRAIN_MODEL_WEIGHTS
 
 
 class BuildModelConfig(object):
@@ -27,8 +23,8 @@ class BuildModelConfig(object):
         self.word_embedding_dropout = 0.2
         self.word_max_count = 10000
         self.use_trained_char_embeddings = True
-        self.char_model_config_path = RU_CHAR_MODEL_CONFIG
-        self.char_model_weights_path = RU_CHAR_MODEL_WEIGHTS
+        self.char_model_config_path = None
+        self.char_model_weights_path = None
 
         self.rnn_input_size = 200
         self.rnn_hidden_size = 128  # размер состояния у LSTM слоя. (у BiLSTM = rnn_hidden_size * 2).
@@ -59,14 +55,14 @@ class BuildModelConfig(object):
 
 class TrainConfig(object):
     def __init__(self):
-        self.model_config_path = RU_MODEL_CONFIG
-        self.model_weights_path = RU_MODEL_WEIGHTS
-        self.train_model_config_path = RU_TRAIN_MODEL_CONFIG
-        self.train_model_weights_path = RU_TRAIN_MODEL_WEIGHTS
-        self.gramm_dict_input = RU_GRAMMEMES_DICT_INPUT
-        self.gramm_dict_output = RU_GRAMMEMES_DICT_OUTPUT
-        self.word_vocabulary = RU_WORD_VOCABULARY
-        self.char_set_path = RU_CHAR_SET
+        self.eval_model_config_path = None
+        self.eval_model_weights_path = None
+        self.train_model_config_path = None
+        self.train_model_weights_path = None
+        self.gram_dict_input = None
+        self.gram_dict_output = None
+        self.word_vocabulary = None
+        self.char_set_path = None
         self.rewrite_model = True
         self.external_batch_size = 5000  # размер батча, который читается из файлов.
         self.batch_size = 256  # размер минибатча.

@@ -11,9 +11,7 @@ from rnnmorph.model import LSTMMorphoAnalysis
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm, WordFormOut
 from rnnmorph.config import BuildModelConfig
-from rnnmorph.settings import RU_MODEL_CONFIG, RU_MODEL_WEIGHTS, \
-    RU_GRAMMEMES_DICT_INPUT, RU_GRAMMEMES_DICT_OUTPUT, RU_WORD_VOCABULARY, \
-    RU_CHAR_SET, RU_BUILD_CONFIG, RU_TRAIN_MODEL_CONFIG, RU_TRAIN_MODEL_WEIGHTS
+from rnnmorph.settings import MODELS_PATHS
 
 
 class Predictor:
@@ -62,21 +60,34 @@ class RNNMorphPredictor(Predictor):
     POS-теггер на освное RNN.
     """
     def __init__(self,
-                 train_model_config_path: str = RU_TRAIN_MODEL_CONFIG,
-                 train_model_weights_path: str = RU_TRAIN_MODEL_WEIGHTS,
-                 model_config_path: str=RU_MODEL_CONFIG,
-                 model_weights_path: str=RU_MODEL_WEIGHTS,
-                 gramm_dict_input: str=RU_GRAMMEMES_DICT_INPUT,
-                 gramm_dict_output: str=RU_GRAMMEMES_DICT_OUTPUT,
-                 word_vocabulary: str=RU_WORD_VOCABULARY,
-                 char_set_path: str=RU_CHAR_SET,
-                 build_config: str=RU_BUILD_CONFIG):
+                 language="ru",
+                 eval_model_config_path: str=None,
+                 eval_model_weights_path: str=None,
+                 gram_dict_input: str=None,
+                 gram_dict_output: str=None,
+                 word_vocabulary: str=None,
+                 char_set_path: str=None,
+                 build_config: str=None):
+        if eval_model_config_path is None:
+            eval_model_config_path = MODELS_PATHS[language]["eval_model_config"]
+        if eval_model_weights_path is None:
+            eval_model_weights_path = MODELS_PATHS[language]["eval_model_weights"]
+        if gram_dict_input is None:
+            gram_dict_input = MODELS_PATHS[language]["gram_input"]
+        if gram_dict_output is None:
+            gram_dict_output = MODELS_PATHS[language]["gram_output"]
+        if word_vocabulary is None:
+            word_vocabulary = MODELS_PATHS[language]["word_vocabulary"]
+        if char_set_path is None:
+            char_set_path = MODELS_PATHS[language]["char_set"]
+        if build_config is None:
+            build_config = MODELS_PATHS[language]["build_config"]
+
         self.build_config = BuildModelConfig()
         self.build_config.load(build_config)
         self.model = LSTMMorphoAnalysis()
-        self.model.prepare(gramm_dict_input, gramm_dict_output, word_vocabulary, char_set_path)
-        self.model.load(self.build_config, model_config_path, model_weights_path,
-                        train_model_config_path, train_model_weights_path)
+        self.model.prepare(gram_dict_input, gram_dict_output, word_vocabulary, char_set_path)
+        self.model.load_eval(eval_model_config_path, eval_model_weights_path)
         self.morph = MorphAnalyzer()
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:

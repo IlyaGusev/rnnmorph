@@ -38,7 +38,7 @@ class LSTMMorphoAnalysis:
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
         self.char_set = ""
-        self.model = None  # type: Model
+        self.train_model = None  # type: Model
         self.eval_model = None
 
     def prepare(self, gram_dump_path_input: str, gram_dump_path_output: str,
@@ -75,48 +75,48 @@ class LSTMMorphoAnalysis:
 
     def save(self, model_config_path: str, model_weights_path: str,
              eval_model_config_path: str, eval_model_weights_path: str):
-        with open(eval_model_config_path, "w", encoding='utf-8') as f:
-            f.write(self.eval_model.to_yaml())
-        self.eval_model.save_weights(eval_model_weights_path)
+        if self.eval_model is not None:
+            with open(eval_model_config_path, "w", encoding='utf-8') as f:
+                f.write(self.eval_model.to_yaml())
+            self.eval_model.save_weights(eval_model_weights_path)
+        if self.train_model is not None:
+            with open(model_config_path, "w", encoding='utf-8') as f:
+                f.write(self.train_model.to_yaml())
+            self.train_model.save_weights(model_weights_path)
 
-        with open(model_config_path, "w", encoding='utf-8') as f:
-            f.write(self.model.to_yaml())
-        self.model.save_weights(model_weights_path)
+    def load_train(self, config: BuildModelConfig, model_config_path: str=None, model_weights_path: str=None):
+        with open(model_config_path, "r", encoding='utf-8') as f:
+            self.train_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
+        self.train_model.load_weights(model_weights_path)
 
-    def load(self, config: BuildModelConfig,
-             eval_model_config_path: str, eval_model_weights_path: str,
-             model_config_path: str=None, model_weights_path: str=None, inherit_eval=True) -> None:
+        loss = {}
+        metrics = {}
+        if config.use_crf:
+            out_layer_name = 'crf'
+            loss[out_layer_name] = self.train_model.layers[-1].loss_function
+            metrics[out_layer_name] = self.train_model.layers[-1].accuracy
+        else:
+            out_layer_name = 'main_pred'
+            loss[out_layer_name] = 'sparse_categorical_crossentropy'
+            metrics[out_layer_name] = 'accuracy'
+
+        if config.use_pos_lm:
+            prev_layer_name = 'shifted_pred_prev'
+            next_layer_name = 'shifted_pred_next'
+            loss[prev_layer_name] = loss[next_layer_name] = 'sparse_categorical_crossentropy'
+            metrics[prev_layer_name] = metrics[next_layer_name] = 'accuracy'
+        self.train_model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
+
+        self.eval_model = Model(inputs=self.train_model.inputs, outputs=self.train_model.outputs[0])
+        self.eval_model.compile(Adam(clipnorm=5.),
+                                loss='sparse_categorical_crossentropy',
+                                metrics=['accuracy'])
+
+    def load_eval(self, eval_model_config_path: str, eval_model_weights_path: str) -> None:
         with open(eval_model_config_path, "r", encoding='utf-8') as f:
             self.eval_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
         self.eval_model.load_weights(eval_model_weights_path)
-        if model_config_path is not None and model_weights_path is not None:
-            with open(model_config_path, "r", encoding='utf-8') as f:
-                self.model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
-            self.model.load_weights(model_weights_path)
-
-            loss = {}
-            metrics = {}
-            if config.use_crf:
-                out_layer_name = 'crf'
-                loss[out_layer_name] = self.model.layers[-1].loss_function
-                metrics[out_layer_name] = self.model.layers[-1].accuracy
-            else:
-                out_layer_name = 'main_pred'
-                loss[out_layer_name] = 'sparse_categorical_crossentropy'
-                metrics[out_layer_name] = 'accuracy'
-
-            if config.use_pos_lm:
-                prev_layer_name = 'shifted_pred_prev'
-                next_layer_name = 'shifted_pred_next'
-                loss[prev_layer_name] = loss[next_layer_name] = 'sparse_categorical_crossentropy'
-                metrics[prev_layer_name] = metrics[next_layer_name] = 'accuracy'
-            self.model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
-
-            if inherit_eval:
-                self.eval_model = Model(inputs=self.model.inputs, outputs=self.model.outputs[0])
-                self.eval_model.compile(Adam(clipnorm=5.),
-                                        loss='sparse_categorical_crossentropy',
-                                        metrics=['accuracy'])
+        self.eval_model.compile(Adam(clipnorm=5.), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     def build(self, config: BuildModelConfig, word_embeddings=None):
         """
@@ -231,13 +231,13 @@ class LSTMMorphoAnalysis:
             loss[out_layer_name] = 'sparse_categorical_crossentropy'
             metrics[out_layer_name] = 'accuracy'
 
-        self.model = Model(inputs=inputs, outputs=outputs)
-        self.model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
+        self.train_model = Model(inputs=inputs, outputs=outputs)
+        self.train_model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
         self.eval_model = Model(inputs=inputs, outputs=outputs[0])
         self.eval_model.compile(Adam(clipnorm=5.),
                                 loss='sparse_categorical_crossentropy',
                                 metrics=['accuracy'])
-        print(self.model.summary())
+        print(self.train_model.summary())
 
     def train(self, file_names: List[str], train_config: TrainConfig, build_config: BuildModelConfig) -> None:
         np.random.seed(train_config.random_seed)
@@ -255,10 +255,10 @@ class LSTMMorphoAnalysis:
                     word_vocabulary=self.word_vocabulary,
                     char_set=self.char_set)
             for epoch, (inputs, target) in enumerate(batch_generator):
-                self.model.fit(inputs, target, batch_size=train_config.batch_size, epochs=1, verbose=2)
+                self.train_model.fit(inputs, target, batch_size=train_config.batch_size, epochs=1, verbose=2)
                 if epoch != 0 and epoch % train_config.dump_model_freq == 0:
                     self.save(train_config.train_model_config_path, train_config.train_model_weights_path,
-                              train_config.model_config_path, train_config.model_weights_path)
+                              train_config.eval_model_config_path, train_config.eval_model_weights_path)
             self.evaluate(
                 file_names=file_names,
                 val_idx=val_idx,

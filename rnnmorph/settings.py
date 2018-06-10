@@ -1,17 +1,28 @@
+import os
+from collections import defaultdict
 from pkg_resources import resource_filename
 
-RU_TRAIN_MODEL_CONFIG = resource_filename(__name__, "models/ru_train_model.yaml")
-RU_TRAIN_MODEL_WEIGHTS = resource_filename(__name__, "models/ru_train_model.h5")
-RU_MODEL_CONFIG = resource_filename(__name__, "models/ru_model.yaml")
-RU_MODEL_WEIGHTS = resource_filename(__name__, "models/ru_model.h5")
-RU_GRAMMEMES_DICT_INPUT = resource_filename(__name__, "models/ru_gram_input.json")
-RU_GRAMMEMES_DICT_OUTPUT = resource_filename(__name__, "models/ru_gram_output.json")
-RU_WORD_VOCABULARY = resource_filename(__name__, "models/ru_word_vocabulary.pickle")
-RU_CHAR_SET = resource_filename(__name__, "models/ru_char_set.txt")
-RU_CHAR_MODEL_CONFIG = resource_filename(__name__, "models/ru_char_model.yaml")
-RU_CHAR_MODEL_WEIGHTS = resource_filename(__name__, "models/ru_char_model.h5")
-RU_BUILD_CONFIG = resource_filename(__name__, "models/ru_build_config.json")
-RU_TRAIN_CONFIG = resource_filename(__name__, "models/ru_train_config.json")
+MODELS_FOLDER = resource_filename(__name__, "models")
+LANGUAGES = ("ru", "en")
+
+FILES = dict()
+FILES["build_config"] = "build_config.json"
+FILES["train_config"] = "train_config.json"
+FILES["train_model_config"] = "train_model.yaml"
+FILES["train_model_weights"] = "train_model.h5"
+FILES["eval_model_config"] = "eval_model.yaml"
+FILES["eval_model_weights"] = "eval_model.h5"
+FILES["gram_input"] = "gram_input.json"
+FILES["gram_output"] = "gram_output.json"
+FILES["word_vocabulary"] = "word_vocabulary.pickle"
+FILES["char_set"] = "char_set.txt"
+FILES["char_model_config"] = "char_model.yaml"
+FILES["char_model_weights"] = "char_model.h5"
+
+MODELS_PATHS = defaultdict(dict)
+for language in LANGUAGES:
+    for key, file_name in FILES.items():
+        MODELS_PATHS[language][key] = os.path.join(MODELS_FOLDER, language, file_name)
 
 TEST_TAGGED_FOLDER = resource_filename(__name__, "test/tagged")
 TEST_UNTAGGED_VK = resource_filename(__name__, "test/untagged/VK_extracted.txt")
