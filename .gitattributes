@@ -5,3 +5,6 @@ rnnmorph/models/ru/train_model.h5 filter=lfs diff=lfs merge=lfs -text
 rnnmorph/models/ru/model.h5 filter=lfs diff=lfs merge=lfs -text
 rnnmorph/models/ru/word_vocabulary.pickle filter=lfs diff=lfs merge=lfs -text
 rnnmorph/models/ru/eval_model.h5 filter=lfs diff=lfs merge=lfs -text
+rnnmorph/models/en/eval_model.h5 filter=lfs diff=lfs merge=lfs -text
+rnnmorph/models/en/train_model.h5 filter=lfs diff=lfs merge=lfs -text
+rnnmorph/models/en/word_vocabulary.pickle filter=lfs diff=lfs merge=lfs -text

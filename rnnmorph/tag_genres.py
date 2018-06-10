@@ -6,7 +6,8 @@ import os
 from typing import Dict
 from rnnmorph.predictor import RNNMorphPredictor
 from rnnmorph.settings import TEST_TAGGED_JZ, TEST_TAGGED_LENTA, TEST_TAGGED_VK, TEST_UNTAGGED_JZ, \
-    TEST_UNTAGGED_LENTA, TEST_UNTAGGED_VK, TEST_GOLD_JZ, TEST_GOLD_LENTA, TEST_GOLD_VK, TEST_TAGGED_FOLDER
+    TEST_UNTAGGED_LENTA, TEST_UNTAGGED_VK, TEST_GOLD_JZ, TEST_GOLD_LENTA, TEST_GOLD_VK, TEST_TAGGED_FOLDER, \
+    TEST_GOLD_EN_EWT_UD, TEST_TAGGED_EN_EWT_UD
 from rnnmorph.util.timeit import timeit
 from rnnmorph.test.evaluate import measure
 
@@ -22,7 +23,7 @@ def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: s
                 word = records[1]
                 words.append(word)
             else:
-                sentences.append([word.lower() for word in words])
+                sentences.append([word for word in words])
                 words = []
     with open(tagged_filename, "w",  encoding='utf-8') as w:
         all_forms = predictor.predict_sentences_tags(sentences)
@@ -33,7 +34,7 @@ def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: s
             w.write("\n")
 
 
-def tag_files(predictor: RNNMorphPredictor) -> Dict:
+def tag_ru_files(predictor: RNNMorphPredictor) -> Dict:
     if not os.path.exists(TEST_TAGGED_FOLDER):
         os.makedirs(TEST_TAGGED_FOLDER)
     tag(predictor, TEST_UNTAGGED_LENTA, TEST_TAGGED_LENTA)
@@ -58,3 +59,8 @@ def tag_files(predictor: RNNMorphPredictor) -> Dict:
     quality['All']['tag_accuracy'] = float(count_correct_tags)/count_tags
     quality['All']['sentence_accuracy'] = float(count_correct_sentences) / count_sentences
     return quality
+
+
+def tag_en_files(predictor: RNNMorphPredictor):
+    tag(predictor, TEST_GOLD_EN_EWT_UD, TEST_TAGGED_EN_EWT_UD)
+    return measure(TEST_GOLD_EN_EWT_UD, TEST_TAGGED_EN_EWT_UD, True, None)

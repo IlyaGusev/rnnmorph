@@ -25,4 +25,4 @@ def process_gram_tag(gram: str):
     gram = gram.strip().split("|")
     dropped = ["Animacy", "Aspect", "NumType"]
     gram = [grammem for grammem in gram if sum([drop in grammem for drop in dropped]) == 0]
-    return "|".join(sorted(gram))
+    return "|".join(sorted(gram)) if gram else "_"

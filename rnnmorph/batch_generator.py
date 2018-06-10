@@ -173,7 +173,7 @@ class BatchGenerator:
                         i += 1
                     else:
                         word, lemma, pos, tags = line.split('\t')[0:4]
-                        word, lemma = word.lower(), lemma.lower() + '_' + pos
+                        word, lemma = word, lemma + '_' + pos
                         gram_vector_index = self.grammeme_vectorizer_output.get_index_by_name(pos + "#" + tags)
                         last_sentence.append(WordForm(lemma, gram_vector_index, word))
         for index, bucket in enumerate(self.buckets):

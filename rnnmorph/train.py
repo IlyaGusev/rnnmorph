@@ -46,7 +46,10 @@ def train(file_names: List[str], train_config_path: str, build_config_path: str,
         model.load_train(build_config, train_config.train_model_config_path, train_config.train_model_weights_path)
         print(model.eval_model.summary())
     else:
-        embeddings = load_embeddings(embeddings_path, model.word_vocabulary, build_config.word_max_count)
+        embeddings = None
+        if embeddings_path is not None:
+            embeddings = load_embeddings(embeddings_path, model.word_vocabulary, build_config.word_max_count)
+        print(embeddings.shape)
         model.build(build_config, embeddings)
     model.train(file_names, train_config, build_config)
 
@@ -58,10 +61,15 @@ def main():
     import logging
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     dir_name = "/media/yallen/My Passport/Datasets/Morpho/clean"
+    # dir_name = "/media/yallen/My Passport/Datasets/Morpho/en_clean/train"
     embeddings_path = "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt"
+    # embeddings_path = "/media/yallen/My Passport/Models/Vectors/FastText/wiki.en.vec"
+    # embeddings_path = None
+    # language = "en"
     language = "ru"
     file_names = [os.path.join(dir_name, file_name) for file_name in os.listdir(dir_name)]
-    train(file_names, MODELS_PATHS[language]["train_config"], MODELS_PATHS[language]["build_config"], embeddings_path)
+    train(file_names, MODELS_PATHS[language]["train_config"], MODELS_PATHS[language]["build_config"],
+          language, embeddings_path)
 
 
 if __name__ == "__main__":

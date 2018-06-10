@@ -12,6 +12,7 @@ from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Acti
 from keras.models import Model, model_from_yaml
 from keras.optimizers import Adam
 from keras import backend as K
+from keras_contrib.layers import CRF
 
 from rnnmorph.batch_generator import BatchGenerator
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
@@ -86,15 +87,20 @@ class LSTMMorphoAnalysis:
 
     def load_train(self, config: BuildModelConfig, model_config_path: str=None, model_weights_path: str=None):
         with open(model_config_path, "r", encoding='utf-8') as f:
-            self.train_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
+            self.train_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM, 'CRF': CRF})
         self.train_model.load_weights(model_weights_path)
 
         loss = {}
         metrics = {}
         if config.use_crf:
             out_layer_name = 'crf'
-            loss[out_layer_name] = self.train_model.layers[-1].loss_function
-            metrics[out_layer_name] = self.train_model.layers[-1].accuracy
+            offset = 0
+            if config.use_pos_lm:
+                offset += 2
+            if config.use_word_lm:
+                offset += 2
+            loss[out_layer_name] = self.train_model.layers[-1-offset].loss_function
+            metrics[out_layer_name] = self.train_model.layers[-1-offset].accuracy
         else:
             out_layer_name = 'main_pred'
             loss[out_layer_name] = 'sparse_categorical_crossentropy'
@@ -108,15 +114,11 @@ class LSTMMorphoAnalysis:
         self.train_model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
 
         self.eval_model = Model(inputs=self.train_model.inputs, outputs=self.train_model.outputs[0])
-        self.eval_model.compile(Adam(clipnorm=5.),
-                                loss='sparse_categorical_crossentropy',
-                                metrics=['accuracy'])
 
     def load_eval(self, eval_model_config_path: str, eval_model_weights_path: str) -> None:
         with open(eval_model_config_path, "r", encoding='utf-8') as f:
-            self.eval_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM})
+            self.eval_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM, 'CRF': CRF})
         self.eval_model.load_weights(eval_model_weights_path)
-        self.eval_model.compile(Adam(clipnorm=5.), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     def build(self, config: BuildModelConfig, word_embeddings=None):
         """
@@ -199,7 +201,6 @@ class LSTMMorphoAnalysis:
         num_of_classes = self.grammeme_vectorizer_output.size() + 1
 
         if config.use_crf:
-            from keras_contrib.layers import CRF
             out_layer_name = 'crf'
             crf_layer = CRF(num_of_classes, sparse_target=True, name=out_layer_name)
             outputs.append(crf_layer(layer))
@@ -234,9 +235,6 @@ class LSTMMorphoAnalysis:
         self.train_model = Model(inputs=inputs, outputs=outputs)
         self.train_model.compile(Adam(clipnorm=5.), loss=loss, metrics=metrics)
         self.eval_model = Model(inputs=inputs, outputs=outputs[0])
-        self.eval_model.compile(Adam(clipnorm=5.),
-                                loss='sparse_categorical_crossentropy',
-                                metrics=['accuracy'])
         print(self.train_model.summary())
 
     def train(self, file_names: List[str], train_config: TrainConfig, build_config: BuildModelConfig) -> None:
