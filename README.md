@@ -60,7 +60,7 @@ sudo pip3 install rnnmorph
 ### Usage ###
 ```
 from rnnmorph.predictor import RNNMorphPredictor
-predictor = RNNMorphPredictor()
+predictor = RNNMorphPredictor(language="ru")
 forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
 print(forms[0].pos)
 >>> NOUN
@@ -73,6 +73,7 @@ print(forms[0].vector)
 ```
 
 ### Acknowledgements ###
+* Anastasyev D. G., Gusev I. O., Indenbom E. M., 2018, [Improving Part-of-speech Tagging Via Multi-task Learning and Character-level Word Representations](http://www.dialog-21.ru/media/4282/anastasyevdg.pdf)
 * Anastasyev D. G., Andrianov A. I., Indenbom E. M., 2017, [Part-of-speech Tagging with Rich Language Description](http://www.dialog-21.ru/media/3895/anastasyevdgetal.pdf), [презентация](http://www.dialog-21.ru/media/4102/anastasyev.pdf)
 * [Дорожка по морфологическому анализу "Диалога-2017"](http://www.dialog-21.ru/evaluation/2017/morphology/)
 * [Материалы дорожки](https://github.com/dialogue-evaluation/morphoRuEval-2017)
