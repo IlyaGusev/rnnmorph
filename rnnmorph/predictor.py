@@ -3,7 +3,9 @@
 # Описание: Предсказатель PoS-тегов.
 
 from typing import List, Tuple
+from collections import defaultdict
 
+import nltk
 from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
 
@@ -83,12 +85,17 @@ class RNNMorphPredictor(Predictor):
         if build_config is None:
             build_config = MODELS_PATHS[language]["build_config"]
 
+        self.language = language
         self.build_config = BuildModelConfig()
         self.build_config.load(build_config)
-        self.model = LSTMMorphoAnalysis()
+        self.model = LSTMMorphoAnalysis(language=language)
         self.model.prepare(gram_dict_input, gram_dict_output, word_vocabulary, char_set_path)
         self.model.load_eval(eval_model_config_path, eval_model_weights_path)
-        self.morph = MorphAnalyzer()
+        self.morph = None
+        if self.language == "ru":
+            self.morph = MorphAnalyzer()
+        else:
+            nltk.download("wordnet")
 
     def predict_sentence_tags(self, words: List[str]) -> List[WordFormOut]:
         tags = self.model.predict([words], 1, self.build_config)[0]
@@ -157,23 +164,34 @@ class RNNMorphPredictor(Predictor):
         """
         if '_' in word:
             return word
-        to_ud = converters.converter('opencorpora-int', 'ud14')
-        guess = ""
-        max_common_tags = 0
-        for word_form in self.morph.parse(word):
-            word_form_pos_tag, word_form_gram = convert_from_opencorpora_tag(to_ud, word_form.tag, word)
-            word_form_gram = process_gram_tag(word_form_gram)
-            common_tags_len = len(set(word_form_gram.split("|")).intersection(set(gram.split("|"))))
-            if common_tags_len > max_common_tags and word_form_pos_tag == pos_tag:
-                max_common_tags = common_tags_len
-                guess = word_form
-        if guess == "":
-            guess = self.morph.parse(word)[0]
-        if enable_gikrya_normalization:
-            lemma = self.__normalize_for_gikrya(guess)
-        else:
-            lemma = guess.normal_form
-        return lemma
+        if self.language == "ru":
+            to_ud = converters.converter('opencorpora-int', 'ud14')
+            guess = ""
+            max_common_tags = 0
+            for word_form in self.morph.parse(word):
+                word_form_pos_tag, word_form_gram = convert_from_opencorpora_tag(to_ud, word_form.tag, word)
+                word_form_gram = process_gram_tag(word_form_gram)
+                common_tags_len = len(set(word_form_gram.split("|")).intersection(set(gram.split("|"))))
+                if common_tags_len > max_common_tags and word_form_pos_tag == pos_tag:
+                    max_common_tags = common_tags_len
+                    guess = word_form
+            if guess == "":
+                guess = self.morph.parse(word)[0]
+            if enable_gikrya_normalization:
+                lemma = self.__normalize_for_gikrya(guess)
+            else:
+                lemma = guess.normal_form
+            return lemma
+        elif self.language == "en":
+            lemmatizer = nltk.stem.WordNetLemmatizer()
+            pos_map = defaultdict(lambda: 'n')
+            pos_map.update({
+                'ADJ': 'a',
+                'ADV': 'r',
+                'NOUN': 'n',
+                'VERB': 'v'
+            })
+            return lemmatizer.lemmatize(word, pos=pos_map[pos_tag])
 
     @staticmethod
     def __normalize_for_gikrya(form):

@@ -2,9 +2,10 @@
 # Автор: Гусев Илья
 # Описание: Модуль загрузки корпусов.
 
-from typing import List, Tuple
+from typing import List
 
 import pymorphy2
+import nltk
 from russian_tagsets import converters
 
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
@@ -17,22 +18,27 @@ class Loader(object):
     """
     Класс для построения GrammemeVectorizer и WordVocabulary по корпусу
     """
-    def __init__(self):
+    def __init__(self, language: str):
+        self.language = language
         self.grammeme_vectorizer_input = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
         self.char_set = set()
-        self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
-        self.converter = converters.converter('opencorpora-int', 'ud14')
+        if self.language == "ru":
+            self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
+            self.converter = converters.converter('opencorpora-int', 'ud14')
+        else:
+            nltk.download('averaged_perceptron_tagger')
+            nltk.download('universal_tagset')
 
-    def parse_corpora(self, file_names: List[str]) -> Tuple[GrammemeVectorizer, GrammemeVectorizer, WordVocabulary]:
+    def parse_corpora(self, file_names: List[str]):
         """
         Построить WordVocabulary, GrammemeVectorizer по корпусу
 
         :param file_names: пути к файлам корпуса.
         """
-        for filename in file_names:
-            with tqdm_open(filename, encoding="utf-8") as f:
+        for file_name in file_names:
+            with tqdm_open(file_name, encoding="utf-8") as f:
                 for line in f:
                     if line == "\n":
                         continue
@@ -43,7 +49,7 @@ class Loader(object):
         self.word_vocabulary.sort()
         self.char_set = " " + "".join(self.char_set).replace(" ", "")
 
-    def __process_line(self, line: str) -> None:
+    def __process_line(self, line: str):
         """
         Обработка строчки в корпусе с морфоразметкой.
         :param line: 
@@ -57,7 +63,12 @@ class Loader(object):
         # Заполняем набор возможных выходных тегов.
         self.grammeme_vectorizer_output.add_grammemes(pos_tag, grammemes)
         # Заполняем набор возможных входных тегов.
-        for parse in self.morph.parse(text):
-            pos, gram = convert_from_opencorpora_tag(self.converter, parse.tag, text)
-            gram = process_gram_tag(gram)
-            self.grammeme_vectorizer_input.add_grammemes(pos, gram)
+        if self.language == "ru":
+            for parse in self.morph.parse(text):
+                pos, gram = convert_from_opencorpora_tag(self.converter, parse.tag, text)
+                gram = process_gram_tag(gram)
+                self.grammeme_vectorizer_input.add_grammemes(pos, gram)
+        elif self.language == "en":
+            _, tags = zip(*nltk.pos_tag([text], tagset='universal'))
+            pos = tags[0]
+            self.grammeme_vectorizer_input.add_grammemes(pos, "_")

@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 import pymorphy2
+import nltk
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
     concatenate, Bidirectional, TimeDistributed, Dropout
 from keras.models import Model, model_from_yaml
@@ -33,7 +34,8 @@ class ReversedLSTM(LSTM):
 
 
 class LSTMMorphoAnalysis:
-    def __init__(self):
+    def __init__(self, language: str):
+        self.language = language
         self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
         self.grammeme_vectorizer_input = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
@@ -41,6 +43,9 @@ class LSTMMorphoAnalysis:
         self.char_set = ""
         self.train_model = None  # type: Model
         self.eval_model = None
+        if self.language == "en":
+            nltk.download('averaged_perceptron_tagger')
+            nltk.download('universal_tagset')
 
     def prepare(self, gram_dump_path_input: str, gram_dump_path_output: str,
                 word_vocabulary_dump_path: str, char_set_dump_path: str,
@@ -61,7 +66,7 @@ class LSTMMorphoAnalysis:
                 self.grammeme_vectorizer_output.is_empty() or \
                 self.word_vocabulary.is_empty() or\
                 not self.char_set:
-            loader = Loader()
+            loader = Loader(self.language)
             loader.parse_corpora(file_names)
 
             self.grammeme_vectorizer_input = loader.grammeme_vectorizer_input
@@ -244,14 +249,15 @@ class LSTMMorphoAnalysis:
         for big_epoch in range(train_config.epochs_num):
             print('------------Big Epoch {}------------'.format(big_epoch))
             batch_generator = BatchGenerator(
-                    file_names=file_names,
-                    config=train_config,
-                    grammeme_vectorizer_input=self.grammeme_vectorizer_input,
-                    grammeme_vectorizer_output=self.grammeme_vectorizer_output,
-                    build_config=build_config,
-                    indices=train_idx,
-                    word_vocabulary=self.word_vocabulary,
-                    char_set=self.char_set)
+                language=self.language,
+                file_names=file_names,
+                config=train_config,
+                grammeme_vectorizer_input=self.grammeme_vectorizer_input,
+                grammeme_vectorizer_output=self.grammeme_vectorizer_output,
+                build_config=build_config,
+                indices=train_idx,
+                word_vocabulary=self.word_vocabulary,
+                char_set=self.char_set)
             for epoch, (inputs, target) in enumerate(batch_generator):
                 self.train_model.fit(inputs, target, batch_size=train_config.batch_size, epochs=1, verbose=2)
                 if epoch != 0 and epoch % train_config.dump_model_freq == 0:
@@ -309,6 +315,7 @@ class LSTMMorphoAnalysis:
         sentence_count = 0
         sentence_errors = 0
         batch_generator = BatchGenerator(
+            language=self.language,
             file_names=file_names,
             config=train_config,
             grammeme_vectorizer_input=self.grammeme_vectorizer_input,
@@ -365,6 +372,7 @@ class LSTMMorphoAnalysis:
                 continue
             word_indices, gram_vectors, char_vectors = BatchGenerator.get_sample(
                 sentence,
+                language=self.language,
                 morph=self.morph,
                 grammeme_vectorizer=self.grammeme_vectorizer_input,
                 max_word_len=build_config.char_max_word_length,

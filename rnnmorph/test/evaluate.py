@@ -53,6 +53,7 @@ def get_cats_to_measure(pos):
     else:
         return []
 
+
 VALUE_ALIASES = {'Brev': ["Short", "Brev"], 'Short': ["Short", "Brev"], "Notpast": ["Pres", "Fut"], "NumForm": ["Form"]}
 
 
@@ -67,7 +68,7 @@ def are_equal_tags(pos, first, second):
 
 
 def measure_quality(corr_sents, test_sents, measure_lemmas=False):
-    correct_tags, correct_sents_by_tags, total_tags = 0, 0, 0
+    correct_tags, correct_sents_by_tags, total_tags, correct_pos = 0, 0, 0, 0
     answer = dict()
     correct, correct_sents = 0, 0
     incorrect_matches = defaultdict(int)
@@ -87,6 +88,7 @@ def measure_quality(corr_sents, test_sents, measure_lemmas=False):
                 if corr_pos != "ADV" or word in DOUBT_ADVERBS:
                     continue
             if (corr_pos == test_pos) or (corr_pos == "NOUN" and test_pos == "PROPN"):
+                correct_pos += 1
                 tag_match = are_equal_tags(corr_pos, corr_tags, test_tags)
                 if tag_match and measure_lemmas and test_lemma is not None:
                     lemma_match = (corr_lemma.replace("ё", "е").lower()
@@ -108,6 +110,7 @@ def measure_quality(corr_sents, test_sents, measure_lemmas=False):
         correct_sents_by_tags += int(is_correct_tags_sent)
         correct_sents += int(is_correct_sent)
     answer['correct_tags'] = correct_tags
+    answer['correct_pos'] = correct_pos
     answer['correct_sents_by_tags'] = correct_sents_by_tags
     answer['total_tags'], answer['total_sents'] = total_tags, len(corr_sents)
     answer['incorrect_matches'] = incorrect_matches
@@ -123,18 +126,21 @@ def help_message():
     print("Колонка с леммой может быть опущена")
     print("Предложения разделяются пустыми строками")
 
+
 SHORT_OPTS, LONG_OPTS = "lhd:", ["lemmas", "help", "dump-incorrect="]
 
 
 def measure(corr_file, test_file, measure_lemmas, dump_file):
     corr_sents, test_sents = read_sents(corr_file), read_sents(test_file)
     quality = measure_quality(corr_sents, test_sents, measure_lemmas=measure_lemmas)
-    correct_tags, total_tags, correct_sents_by_tags = \
-        quality['correct_tags'], quality['total_tags'], quality['correct_sents_by_tags']
+    correct_tags, total_tags, correct_sents_by_tags, correct_pos = \
+        quality['correct_tags'], quality['total_tags'], quality['correct_sents_by_tags'], quality['correct_pos']
     total_sents = len(corr_sents)
     tag_accuracy = 100 * (correct_tags / total_tags)
+    pos_accuracy = 100 * (correct_pos / total_tags)
     sentence_accuracy = 100 * (correct_sents_by_tags / total_sents)
     print("{} меток из {}, точность {:.2f}%".format(correct_tags, total_tags, tag_accuracy))
+    print("{} PoS тегов из {}, точность {:.2f}%".format(correct_pos, total_tags, pos_accuracy))
     print("{} предложений из {}, точность {:.2f}%".format(correct_sents_by_tags, total_sents, sentence_accuracy))
     full_accuracy = None
     full_sentence_accuracy = None
@@ -151,11 +157,13 @@ def measure(corr_file, test_file, measure_lemmas, dump_file):
                     quality['incorrect_matches'].items(), key=(lambda x: x[1]), reverse=True):
                 fout.write("{}\t{}\n{}\n\n".format(first, count, second))
     Accuracy = namedtuple('Accuracy', 'tag_accuracy sentence_accuracy full_tag_accuracy full_sentence_accuracy '
-                                      'correct_tags total_tags correct_sentences total_sentences')
+                                      'correct_tags total_tags correct_sentences total_sentences correct_pos '
+                                      'pos_accuracy')
     return Accuracy(tag_accuracy=tag_accuracy, sentence_accuracy=sentence_accuracy,
                     full_tag_accuracy=full_accuracy, full_sentence_accuracy=full_sentence_accuracy,
                     correct_tags=correct_tags, total_tags=total_tags,
-                    correct_sentences=correct_sents_by_tags, total_sentences=total_sents)
+                    correct_sentences=correct_sents_by_tags, total_sentences=total_sents,
+                    correct_pos=correct_pos, pos_accuracy=pos_accuracy)
 
 
 if __name__ == "__main__":

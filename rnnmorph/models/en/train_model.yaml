@@ -2,6 +2,7 @@ backend: tensorflow
 class_name: Model
 config:
   input_layers:
+  - [grammemes, 0, 0]
   - [chars, 0, 0]
   layers:
   - class_name: InputLayer
@@ -25,7 +26,7 @@ config:
             class_name: RandomUniform
             config: {maxval: 0.05, minval: -0.05, seed: null}
           embeddings_regularizer: null
-          input_dim: 113
+          input_dim: 153
           input_length: null
           mask_zero: false
           name: chars_embeddings
@@ -51,13 +52,85 @@ config:
         - {}
     name: reshape_2
   - class_name: Dropout
-    config: {name: dropout_4, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+    config: {name: dropout_5, noise_shape: null, rate: 0.2, seed: null, trainable: true}
     inbound_nodes:
     - - - reshape_2
         - 0
         - 0
         - {}
-    name: dropout_4
+    name: dropout_5
+  - class_name: Dense
+    config:
+      activation: relu
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer: null
+      name: dense_2
+      trainable: true
+      units: 200
+      use_bias: true
+    inbound_nodes:
+    - - - dropout_5
+        - 0
+        - 0
+        - {}
+    name: dense_2
+  - class_name: InputLayer
+    config:
+      batch_input_shape: !!python/tuple [null, null, 13]
+      dtype: float32
+      name: grammemes
+      sparse: false
+    inbound_nodes: []
+    name: grammemes
+  - class_name: Dropout
+    config: {name: dropout_6, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+    inbound_nodes:
+    - - - dense_2
+        - 0
+        - 0
+        - {}
+    name: dropout_6
+  - class_name: Dropout
+    config: {name: dropout_1, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+    inbound_nodes:
+    - - - grammemes
+        - 0
+        - 0
+        - {}
+    name: dropout_1
+  - class_name: Dense
+    config:
+      activation: linear
+      activity_regularizer: null
+      bias_constraint: null
+      bias_initializer:
+        class_name: Zeros
+        config: {}
+      bias_regularizer: null
+      kernel_constraint: null
+      kernel_initializer:
+        class_name: VarianceScaling
+        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
+      kernel_regularizer: null
+      name: dense_3
+      trainable: true
+      units: 100
+      use_bias: true
+    inbound_nodes:
+    - - - dropout_6
+        - 0
+        - 0
+        - {}
+    name: dense_3
   - class_name: Dense
     config:
       activation: relu
@@ -74,54 +147,34 @@ config:
       kernel_regularizer: null
       name: dense_1
       trainable: true
-      units: 200
+      units: 10
       use_bias: true
     inbound_nodes:
-    - - - dropout_4
+    - - - dropout_1
         - 0
         - 0
         - {}
     name: dense_1
   - class_name: Dropout
-    config: {name: dropout_5, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+    config: {name: dropout_7, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+    inbound_nodes:
+    - - - dense_3
+        - 0
+        - 0
+        - {}
+    name: dropout_7
+  - class_name: Concatenate
+    config: {axis: -1, name: LSTM_input, trainable: true}
     inbound_nodes:
     - - - dense_1
         - 0
         - 0
-        - {}
-    name: dropout_5
-  - class_name: Dense
-    config:
-      activation: linear
-      activity_regularizer: null
-      bias_constraint: null
-      bias_initializer:
-        class_name: Zeros
-        config: {}
-      bias_regularizer: null
-      kernel_constraint: null
-      kernel_initializer:
-        class_name: VarianceScaling
-        config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
-      kernel_regularizer: null
-      name: dense_2
-      trainable: true
-      units: 100
-      use_bias: true
-    inbound_nodes:
-    - - - dropout_5
+        - &id001 {}
+      - - dropout_7
         - 0
         - 0
-        - {}
-    name: dense_2
-  - class_name: Dropout
-    config: {name: dropout_6, noise_shape: null, rate: 0.2, seed: null, trainable: true}
-    inbound_nodes:
-    - - - dense_2
-        - 0
-        - 0
-        - {}
-    name: dropout_6
+        - *id001
+    name: LSTM_input
   - class_name: Dense
     config:
       activation: relu
@@ -136,16 +189,16 @@ config:
         class_name: VarianceScaling
         config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
       kernel_regularizer: null
-      name: dense_4
+      name: dense_5
       trainable: true
       units: 200
       use_bias: true
     inbound_nodes:
-    - - - dropout_6
+    - - - LSTM_input
         - 0
         - 0
         - {}
-    name: dense_4
+    name: dense_5
   - class_name: LSTM
     config:
       activation: tanh
@@ -180,7 +233,7 @@ config:
       unroll: false
       use_bias: true
     inbound_nodes:
-    - - - dense_4
+    - - - dense_5
         - 0
         - 0
         - {}
@@ -219,7 +272,7 @@ config:
       unroll: false
       use_bias: true
     inbound_nodes:
-    - - - dense_4
+    - - - dense_5
         - 0
         - 0
         - {}
@@ -230,11 +283,11 @@ config:
     - - - LSTM_1_forward
         - 0
         - 0
-        - &id001 {}
+        - &id002 {}
       - - LSTM_1_backward
         - 0
         - 0
-        - *id001
+        - *id002
     name: BiLSTM_input
   - class_name: Bidirectional
     config:
@@ -298,7 +351,7 @@ config:
             class_name: VarianceScaling
             config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
           kernel_regularizer: null
-          name: dense_5
+          name: dense_6
           trainable: true
           units: 128
           use_bias: true
@@ -314,7 +367,7 @@ config:
     config:
       layer:
         class_name: Dropout
-        config: {name: dropout_7, noise_shape: null, rate: 0.2, seed: null, trainable: true}
+        config: {name: dropout_8, noise_shape: null, rate: 0.2, seed: null, trainable: true}
       name: time_distributed_3
       trainable: true
     inbound_nodes:
@@ -386,7 +439,7 @@ config:
         class_name: VarianceScaling
         config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
       kernel_regularizer: null
-      name: dense_6
+      name: dense_7
       trainable: true
       units: 128
       use_bias: true
@@ -395,7 +448,7 @@ config:
         - 0
         - 0
         - {}
-    name: dense_6
+    name: dense_7
   - class_name: Dense
     config:
       activation: relu
@@ -410,7 +463,7 @@ config:
         class_name: VarianceScaling
         config: {distribution: uniform, mode: fan_avg, scale: 1.0, seed: null}
       kernel_regularizer: null
-      name: dense_7
+      name: dense_8
       trainable: true
       units: 128
       use_bias: true
@@ -419,7 +472,7 @@ config:
         - 0
         - 0
         - {}
-    name: dense_7
+    name: dense_8
   - class_name: Dense
     config:
       activation: softmax
@@ -436,7 +489,7 @@ config:
       kernel_regularizer: null
       name: main_pred
       trainable: true
-      units: 149
+      units: 187
       use_bias: true
     inbound_nodes:
     - - - time_distributed_5
@@ -460,10 +513,10 @@ config:
       kernel_regularizer: null
       name: shifted_pred_prev
       trainable: true
-      units: 149
+      units: 187
       use_bias: true
     inbound_nodes:
-    - - - dense_6
+    - - - dense_7
         - 0
         - 0
         - {}
@@ -484,10 +537,10 @@ config:
       kernel_regularizer: null
       name: shifted_pred_next
       trainable: true
-      units: 149
+      units: 187
       use_bias: true
     inbound_nodes:
-    - - - dense_7
+    - - - dense_8
         - 0
         - 0
         - {}

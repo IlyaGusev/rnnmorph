@@ -39,7 +39,7 @@ def train(file_names: List[str], train_config_path: str, build_config_path: str,
     if build_config.char_model_config_path is None:
         build_config.char_model_config_path = MODELS_PATHS[language]["char_model_config"]
 
-    model = LSTMMorphoAnalysis()
+    model = LSTMMorphoAnalysis(language)
     model.prepare(train_config.gram_dict_input, train_config.gram_dict_output,
                   train_config.word_vocabulary, train_config.char_set_path, file_names)
     if os.path.exists(train_config.eval_model_config_path) and not train_config.rewrite_model:
@@ -60,13 +60,13 @@ def main():
     import sys
     import logging
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    dir_name = "/media/yallen/My Passport/Datasets/Morpho/clean"
-    # dir_name = "/media/yallen/My Passport/Datasets/Morpho/en_clean/train"
-    embeddings_path = "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt"
-    # embeddings_path = "/media/yallen/My Passport/Models/Vectors/FastText/wiki.en.vec"
+    # dir_name = "/media/yallen/My Passport/Datasets/Morpho/clean"
+    dir_name = "/media/yallen/My Passport/Datasets/Morpho/en_clean/train"
+    # embeddings_path = "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt"
+    embeddings_path = "/media/yallen/My Passport/Models/Vectors/FastText/wiki.en.vec"
     # embeddings_path = None
-    # language = "en"
-    language = "ru"
+    language = "en"
+    # language = "ru"
     file_names = [os.path.join(dir_name, file_name) for file_name in os.listdir(dir_name)]
     train(file_names, MODELS_PATHS[language]["train_config"], MODELS_PATHS[language]["build_config"],
           language, embeddings_path)

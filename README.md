@@ -4,35 +4,49 @@
 [![Build Status](https://travis-ci.org/IlyaGusev/rnnmorph.svg?branch=master)](https://travis-ci.org/IlyaGusev/rnnmorph)
 [![Code Climate](https://codeclimate.com/github/IlyaGusev/rnnmorph/badges/gpa.svg)](https://codeclimate.com/github/IlyaGusev/rnnmorph)
 
-Морфологический анализатор на основе нейронных сетей и pymorphy2.
+Morphological analyzer (POS tagger) for Russian and English languages based on neural networks and dictionary-lookup systems (pymorphy2, nltk).
 
+### Русский язык, MorphoRuEval-2017 test dataset
 Lenta:
 * Качество по тегам:
   * 4025 меток из 4179, точность 96.31%
+  * 4096 PoS тегов из 4179, точность 98.01%
   * 279 предложений из 358, точность 77.93%
-* Качество полного разбора:
+* Качество полного разбора (включая леммы):
   * 3885 слов из 4179, точность 92.96%
   * 189 предложений из 358, точность 52.79%
 
 VK:
 * Качество по тегам:
   * 3691 меток из 3877, точность 95.20%
+  * 3801 PoS тегов из 3877, точность 98.04%
   * 422 предложений из 568, точность 74.30%
-* Качество полного разбора:
+* Качество полного разбора (включая леммы):
   * 3569 слов из 3877, точность 92.06%
   * 344 предложений из 568, точность 60.56%
 
 JZ:
 * Качество по тегам:
   * 3875 меток из 4042, точность 95.87%
+  * 3990 PoS тегов из 4042, точность 98.71%
   * 288 предложений из 394, точность 73.10%
-* Качество полного разбора:
+* Качество полного разбора (включая леммы):
   * 3656 слов из 4042, точность 90.45%
   * 170 предложений из 394, точность 43.15%
 
 All:
 * Точность по тегам по всем разделам: 95.81%
+* Точность по PoS тегам по всем разделам: 98.26%
 * Точность по предложениям по всем разделам: 74.92%
+
+### English language, UD EWT test
+* Only tags:
+  * 13088 correct full tags of 14293, accuracy: 91.57%
+  * 13449 correct PoS tags of 14293, accuracy: 94.10%
+  * 1312 correct sentences of 2077, accuracy: 63.17%
+* With lemmas:
+  * 12438 correct words of 14293, accuracy: 87.02%
+  * 1059 correct sentences of 2077, accuracy: 50.99%
   
 Скорость: от 200 до 600 слов в секунду.
 

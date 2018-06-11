@@ -5,9 +5,11 @@
 from typing import List, Tuple
 
 import pymorphy2
+import nltk
 import numpy as np
 from russian_tagsets import converters
 
+from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
 from rnnmorph.data_preparation.word_form import WordForm
@@ -20,9 +22,16 @@ class BatchGenerator:
     Генератор наборов примеров для обучения.
     """
 
-    def __init__(self, file_names: List[str], config: TrainConfig, grammeme_vectorizer_input: GrammemeVectorizer,
-                 grammeme_vectorizer_output: GrammemeVectorizer, indices: np.array, word_vocabulary, char_set: str,
+    def __init__(self, language: str,
+                 file_names: List[str],
+                 config: TrainConfig,
+                 grammeme_vectorizer_input: GrammemeVectorizer,
+                 grammeme_vectorizer_output: GrammemeVectorizer,
+                 indices: np.array,
+                 word_vocabulary: WordVocabulary,
+                 char_set: str,
                  build_config: BuildModelConfig):
+        self.language = language
         self.file_names = file_names  # type: List[str]
         # Параметры батчей.
         self.batch_size = config.external_batch_size  # type: int
@@ -36,7 +45,12 @@ class BatchGenerator:
         # Подготовленные словари.
         self.grammeme_vectorizer_input = grammeme_vectorizer_input  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
-        self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
+        if self.language == "ru":
+            self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
+        else:
+            self.morph = None
+            nltk.download('averaged_perceptron_tagger')
+            nltk.download('universal_tagset')
 
     def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[List, List]:
         """
@@ -59,9 +73,14 @@ class BatchGenerator:
 
         for i, sentence in enumerate(sentences):
             word_indices, gram_vectors, char_vectors = self.get_sample(
-                [x.text for x in sentence], self.morph, self.grammeme_vectorizer_input,
-                self.build_config.char_max_word_length, self.word_vocabulary, self.build_config.word_max_count,
-                self.char_set)
+                [x.text for x in sentence],
+                language=self.language,
+                morph=self.morph,
+                grammeme_vectorizer=self.grammeme_vectorizer_input,
+                max_word_len=self.build_config.char_max_word_length,
+                word_vocabulary=self.word_vocabulary,
+                word_count=self.build_config.word_max_count,
+                char_set=self.char_set)
             assert len(word_indices) == len(sentence) and \
                    len(gram_vectors) == len(sentence) and \
                    len(char_vectors) == len(sentence)
@@ -95,12 +114,18 @@ class BatchGenerator:
         return data, target
 
     @staticmethod
-    def get_sample(sentence: List[str], morph: pymorphy2.MorphAnalyzer,
-                   grammeme_vectorizer: GrammemeVectorizer, max_word_len: int,
-                   word_vocabulary, word_count: int, char_set: str):
+    def get_sample(sentence: List[str],
+                   language: str,
+                   morph: pymorphy2.MorphAnalyzer,
+                   grammeme_vectorizer: GrammemeVectorizer,
+                   max_word_len: int,
+                   word_vocabulary: WordVocabulary,
+                   word_count: int,
+                   char_set: str):
         """
         Получние признаков для отдельного предложения.
 
+        :param language: язык.
         :param sentence: предложение.
         :param morph: морфология.
         :param grammeme_vectorizer: грамматический словарь. 
@@ -129,11 +154,17 @@ class BatchGenerator:
             word_indices.append(word_index)
 
             # Грамматический вектор слова.
-            # Складываем все возможные варианты разбора поэлементно.
-            for parse in morph.parse(word):
-                pos, gram = convert_from_opencorpora_tag(to_ud, parse.tag, word)
-                gram = process_gram_tag(gram)
-                gram_value_indices += np.array(grammeme_vectorizer.get_vector(pos + "#" + gram))
+            if language == "ru":
+                # Складываем все возможные варианты разбора поэлементно.
+                for parse in morph.parse(word):
+                    pos, gram = convert_from_opencorpora_tag(to_ud, parse.tag, word)
+                    gram = process_gram_tag(gram)
+                    gram_value_indices += np.array(grammeme_vectorizer.get_vector(pos + "#" + gram))
+            elif language == "en":
+                _, tags = zip(*nltk.pos_tag([word], tagset='universal'))
+                pos = tags[0]
+                gram_value_indices += np.array(grammeme_vectorizer.get_vector(pos + "#_"))
+
             # Нормируем по каждой категории отдельно.
             sorted_grammemes = sorted(grammeme_vectorizer.all_grammemes.items(), key=lambda x: x[0])
             index = 0

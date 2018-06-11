@@ -77,8 +77,9 @@ class TestLSTMMorph(unittest.TestCase):
         self.assertGreater(quality['JZ'].tag_accuracy, 94)
         self.assertGreater(quality['JZ'].sentence_accuracy, 70)
         print("Точность по тегам по всем разделам: %.2f%%" % (quality['All']['tag_accuracy']*100))
+        print("Точность по PoS тегам по всем разделам: %.2f%%" % (quality['All']['pos_accuracy'] * 100))
         print("Точность по предложениям по всем разделам: %.2f%%" % (quality['All']['sentence_accuracy'] * 100))
         self.assertGreater(quality['All']['tag_accuracy'], 0.95)
 
-    # def test_en_accuracy(self):
-    #     print(tag_en_files(self.en_predictor))
+    def test_en_accuracy(self):
+        self.assertGreater(tag_en_files(self.en_predictor).tag_accuracy, 85)

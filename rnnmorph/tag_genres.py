@@ -50,13 +50,15 @@ def tag_ru_files(predictor: RNNMorphPredictor) -> Dict:
     quality['JZ'] = measure(TEST_GOLD_JZ, TEST_TAGGED_JZ, True, None)
     print("All:")
     count_correct_tags = quality['Lenta'].correct_tags + quality['VK'].correct_tags + quality['JZ'].correct_tags
+    count_correct_pos = quality['Lenta'].correct_pos + quality['VK'].correct_pos + quality['JZ'].correct_pos
     count_tags = quality['Lenta'].total_tags + quality['VK'].total_tags + quality['JZ'].total_tags
     count_correct_sentences = quality['Lenta'].correct_sentences + quality['VK'].correct_sentences + \
                               quality['JZ'].correct_sentences
     count_sentences = quality['Lenta'].total_sentences + quality['VK'].total_sentences + \
                       quality['JZ'].total_sentences
     quality['All'] = dict()
-    quality['All']['tag_accuracy'] = float(count_correct_tags)/count_tags
+    quality['All']['tag_accuracy'] = float(count_correct_tags) / count_tags
+    quality['All']['pos_accuracy'] = float(count_correct_pos) / count_tags
     quality['All']['sentence_accuracy'] = float(count_correct_sentences) / count_sentences
     return quality
 
