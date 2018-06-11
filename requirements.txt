@@ -9,3 +9,5 @@ pymorphy2 >= 0.8
 russian-tagsets == 0.6
 tqdm >= 4.14.0
 jsonpickle >= 0.9.4
+nltk>=3.2.5
+git+https://www.github.com/keras-team/keras-contrib.git
