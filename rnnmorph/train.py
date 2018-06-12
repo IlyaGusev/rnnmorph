@@ -52,25 +52,3 @@ def train(file_names: List[str], train_config_path: str, build_config_path: str,
         print(embeddings.shape)
         model.build(build_config, embeddings)
     model.train(file_names, train_config, build_config)
-
-
-def main():
-    # shrink_w2v("/media/yallen/My Passport/Models/Vectors/RDT/russian-big-w2v.txt", 600000,
-    #            "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt")
-    import sys
-    import logging
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    # dir_name = "/media/yallen/My Passport/Datasets/Morpho/clean"
-    dir_name = "/media/yallen/My Passport/Datasets/Morpho/en_clean/train"
-    # embeddings_path = "/media/yallen/My Passport/Models/Vectors/RDT/russian-small-w2v.txt"
-    embeddings_path = "/media/yallen/My Passport/Models/Vectors/FastText/wiki.en.vec"
-    # embeddings_path = None
-    language = "en"
-    # language = "ru"
-    file_names = [os.path.join(dir_name, file_name) for file_name in os.listdir(dir_name)]
-    train(file_names, MODELS_PATHS[language]["train_config"], MODELS_PATHS[language]["build_config"],
-          language, embeddings_path)
-
-
-if __name__ == "__main__":
-    main()

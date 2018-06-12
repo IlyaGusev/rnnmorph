@@ -28,7 +28,8 @@ class WordFormOut(object):
         self.possible_forms = []
 
     def __repr__(self):
-        return "<Normal form = {}; Word = {}>".format(self.normal_form, self.word)
+        return "<normal_form={}; word={}; pos={}; tag={}; score={}>"\
+            .format(self.normal_form, self.word, self.pos, self.tag, "%0.4f" % self.score)
 
     def __eq__(self, other):
         return (self.normal_form, self.word, self.pos, self.tag) == \

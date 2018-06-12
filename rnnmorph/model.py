@@ -13,7 +13,6 @@ from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Acti
 from keras.models import Model, model_from_yaml
 from keras.optimizers import Adam
 from keras import backend as K
-from keras_contrib.layers import CRF
 
 from rnnmorph.batch_generator import BatchGenerator
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
@@ -90,7 +89,13 @@ class LSTMMorphoAnalysis:
 
     def load_train(self, config: BuildModelConfig, model_config_path: str=None, model_weights_path: str=None):
         with open(model_config_path, "r", encoding='utf-8') as f:
-            self.train_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM, 'CRF': CRF})
+            if config.use_crf:
+                from keras_contrib.layers import CRF
+                custom_objects = {'ReversedLSTM': ReversedLSTM, 'CRF': CRF}
+                self.train_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+            else:
+                custom_objects = {'ReversedLSTM': ReversedLSTM}
+                self.train_model = model_from_yaml(f.read(), custom_objects=custom_objects)
         self.train_model.load_weights(model_weights_path)
 
         loss = {}
@@ -118,9 +123,16 @@ class LSTMMorphoAnalysis:
 
         self.eval_model = Model(inputs=self.train_model.inputs, outputs=self.train_model.outputs[0])
 
-    def load_eval(self, eval_model_config_path: str, eval_model_weights_path: str) -> None:
+    def load_eval(self, config: BuildModelConfig, eval_model_config_path: str,
+                  eval_model_weights_path: str) -> None:
         with open(eval_model_config_path, "r", encoding='utf-8') as f:
-            self.eval_model = model_from_yaml(f.read(), custom_objects={'ReversedLSTM': ReversedLSTM, 'CRF': CRF})
+            if config.use_crf:
+                from keras_contrib.layers import CRF
+                custom_objects = {'ReversedLSTM': ReversedLSTM, 'CRF': CRF}
+                self.eval_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+            else:
+                custom_objects = {'ReversedLSTM': ReversedLSTM}
+                self.eval_model = model_from_yaml(f.read(), custom_objects=custom_objects)
         self.eval_model.load_weights(eval_model_weights_path)
 
     def build(self, config: BuildModelConfig, word_embeddings=None):
@@ -204,6 +216,7 @@ class LSTMMorphoAnalysis:
         num_of_classes = self.grammeme_vectorizer_output.size() + 1
 
         if config.use_crf:
+            from keras_contrib.layers import CRF
             out_layer_name = 'crf'
             crf_layer = CRF(num_of_classes, sparse_target=True, name=out_layer_name)
             outputs.append(crf_layer(layer))

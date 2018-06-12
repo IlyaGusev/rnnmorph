@@ -75,13 +75,17 @@ class RNNMorphPredictor(Predictor):
         self.language = language
         self.converter = converters.converter('opencorpora-int', 'ud14') if language == "ru" else None
         self.morph = MorphAnalyzer() if language == "ru" else None
+        if self.language == "en":
+            nltk.download("wordnet")
+            nltk.download('averaged_perceptron_tagger')
+            nltk.download('universal_tagset')
 
         self.build_config = BuildModelConfig()
         self.build_config.load(build_config)
 
         self.model = LSTMMorphoAnalysis(language=language)
         self.model.prepare(gram_dict_input, gram_dict_output, word_vocabulary, char_set_path)
-        self.model.load_eval(eval_model_config_path, eval_model_weights_path)
+        self.model.load_eval(self.build_config, eval_model_config_path, eval_model_weights_path)
 
     def predict(self, words: List[str], include_all_forms: bool=False) -> List[WordFormOut]:
         words_probabilities = self.model.predict_probabilities([words], 1, self.build_config)[0]
