@@ -2,6 +2,7 @@ import unittest
 import logging
 import sys
 import numpy as np
+import nltk
 
 # import os
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -15,6 +16,7 @@ class TestLSTMMorph(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+        nltk.download("wordnet")
         cls.en_predictor = RNNMorphPredictor(language="en")
         cls.ru_predictor = RNNMorphPredictor(language="ru")
 
