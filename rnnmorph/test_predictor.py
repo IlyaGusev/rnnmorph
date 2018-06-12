@@ -17,6 +17,8 @@ class TestLSTMMorph(unittest.TestCase):
     def setUpClass(cls):
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         nltk.download("wordnet")
+        nltk.download('averaged_perceptron_tagger')
+        nltk.download('universal_tagset')
         cls.en_predictor = RNNMorphPredictor(language="en")
         cls.ru_predictor = RNNMorphPredictor(language="ru")
 
