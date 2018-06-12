@@ -64,5 +64,7 @@ def tag_ru_files(predictor: RNNMorphPredictor) -> Dict:
 
 
 def tag_en_files(predictor: RNNMorphPredictor):
+    if not os.path.exists(TEST_TAGGED_FOLDER):
+        os.makedirs(TEST_TAGGED_FOLDER)
     tag(predictor, TEST_GOLD_EN_EWT_UD, TEST_TAGGED_EN_EWT_UD)
     return measure(TEST_GOLD_EN_EWT_UD, TEST_TAGGED_EN_EWT_UD, True, None)
