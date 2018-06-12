@@ -1,4 +1,15 @@
 from setuptools import find_packages, setup
+from setuptools.command.install import install as _install
+
+
+class Install(_install):
+    def run(self):
+        _install.do_egg_install(self)
+        import nltk
+        nltk.download("wordnet")
+        nltk.download('averaged_perceptron_tagger')
+        nltk.download('universal_tagset')
+
 
 setup(
     name='rnnmorph',
@@ -14,6 +25,7 @@ setup(
     package_data={
         'rnnmorph': ['models/*']
     },
+    cmdclass={'install': Install},
     install_requires=[
         'numpy>=1.11.3',
         'scipy>=0.18.1',
@@ -23,7 +35,12 @@ setup(
         'pymorphy2>=0.8',
         'russian-tagsets==0.6',
         'tqdm>=4.14.0',
-        'jsonpickle>=0.9.4'
+        'jsonpickle>=0.9.4',
+        'nltk>=3.2.5',
+        'git+https://www.github.com/keras-team/keras-contrib.git'
+    ],
+    setup_requires=[
+        'nltk>=3.2.5'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

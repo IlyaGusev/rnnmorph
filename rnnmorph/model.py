@@ -6,8 +6,8 @@ from typing import List, Tuple
 import os
 
 import numpy as np
-import pymorphy2
-import nltk
+from pymorphy2 import MorphAnalyzer
+from russian_tagsets import converters
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
     concatenate, Bidirectional, TimeDistributed, Dropout
 from keras.models import Model, model_from_yaml
@@ -35,17 +35,15 @@ class ReversedLSTM(LSTM):
 
 class LSTMMorphoAnalysis:
     def __init__(self, language: str):
-        self.language = language
-        self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
+        self.language = language  # type: str
+        self.morph = MorphAnalyzer() if language == "ru" else None  # type: MorphAnalyzer
+        self.converter = converters.converter('opencorpora-int', 'ud14') if self.language == "ru" else None
         self.grammeme_vectorizer_input = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
-        self.char_set = ""
+        self.char_set = ""  # type: str
         self.train_model = None  # type: Model
-        self.eval_model = None
-        if self.language == "en":
-            nltk.download('averaged_perceptron_tagger')
-            nltk.download('universal_tagset')
+        self.eval_model = None  # type: Model
 
     def prepare(self, gram_dump_path_input: str, gram_dump_path_output: str,
                 word_vocabulary_dump_path: str, char_set_dump_path: str,
@@ -347,8 +345,8 @@ class LSTMMorphoAnalysis:
         print("Word accuracy: ", 1.0 - float(word_errors) / word_count)
         print("Sentence accuracy: ", 1.0 - float(sentence_errors) / sentence_count)
 
-    def predict_proba(self, sentences: List[List[str]], batch_size: int,
-                      build_config: BuildModelConfig) -> List[List[List[float]]]:
+    def predict_probabilities(self, sentences: List[List[str]], batch_size: int,
+                              build_config: BuildModelConfig) -> List[List[List[float]]]:
         """
         Предсказание полных PoS-тегов по предложению с вероятностями всех вариантов.
 
@@ -373,6 +371,7 @@ class LSTMMorphoAnalysis:
             word_indices, gram_vectors, char_vectors = BatchGenerator.get_sample(
                 sentence,
                 language=self.language,
+                converter=self.converter,
                 morph=self.morph,
                 grammeme_vectorizer=self.grammeme_vectorizer_input,
                 max_word_len=build_config.char_max_word_length,
@@ -391,22 +390,3 @@ class LSTMMorphoAnalysis:
         if build_config.use_chars:
             inputs.append(chars)
         return self.eval_model.predict(inputs, batch_size=batch_size)
-
-    def predict(self, sentences: List[List[str]], batch_size: int,
-                build_config: BuildModelConfig) -> List[List[int]]:
-        """
-        Предсказание полных PoS-тегов по предложению.
-
-        :param sentences: массив предложений (которые являются массивом слов).
-        :param batch_size: размер батча.
-        :param build_config: конфиг архитектуры модели.
-        :return: массив тегов.
-        """
-        answers = []
-        for sentence, probs in zip(sentences, self.predict_proba(sentences, batch_size, build_config)):
-            answer = []
-            for grammeme_probs in probs[-len(sentence):]:
-                num = np.argmax(grammeme_probs[1:])
-                answer.append(num)
-            answers.append(answer)
-        return answers

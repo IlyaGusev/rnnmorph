@@ -24,24 +24,24 @@ class TestLSTMMorph(unittest.TestCase):
         self.assertEqual(parse.tag, tag)
 
     def test_ru_sentence_analysis1(self):
-        forms = self.ru_predictor.predict_sentence_tags(["косил", "косой", "косой", "косой"])
+        forms = self.ru_predictor.predict(["косил", "косой", "косой", "косой"])
         self.__assert_parse(forms[0], 'VERB', 'косить',
                             'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.assertIn(1, forms[0].vector)
     
     def test_empty_sentence(self):
-        forms = self.ru_predictor.predict_sentence_tags([])
+        forms = self.ru_predictor.predict([])
         self.assertEqual(forms, [])
 
     def test_ru_sentence_analysis2(self):
-        forms = self.ru_predictor.predict_sentence_tags(["мама", "мыла", "раму"])
+        forms = self.ru_predictor.predict(["мама", "мыла", "раму"])
         self.__assert_parse(forms[0], 'NOUN', 'мама', 'Case=Nom|Gender=Fem|Number=Sing')
         self.__assert_parse(forms[1], 'VERB', 'мыть',
                             'Gender=Fem|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
         self.__assert_parse(forms[2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
 
     def test_ru_sentences_analysis1(self):
-        forms = self.ru_predictor.predict_sentences_tags([["косил", "косой", "косой", "косой"], ["мама", "мыла", "раму"]])
+        forms = self.ru_predictor.predict_sentences([["косил", "косой", "косой", "косой"], ["мама", "мыла", "раму"]])
 
         self.__assert_parse(forms[0][0], 'VERB', 'косить',
                             'Gender=Masc|Mood=Ind|Number=Sing|Tense=Past|VerbForm=Fin|Voice=Act')
@@ -52,20 +52,19 @@ class TestLSTMMorph(unittest.TestCase):
         self.__assert_parse(forms[1][2], 'NOUN', 'рама', 'Case=Acc|Gender=Fem|Number=Sing')
     
     def test_empty_sentences(self):
-        forms = self.ru_predictor.predict_sentences_tags([[]])
+        forms = self.ru_predictor.predict_sentences([[]])
         self.assertEqual(forms, [[]])
         
     def test_ru_one_empty_sentence_in_sentences(self):
-        forms = self.ru_predictor.predict_sentences_tags([["косил", "косой", "косой", "косой"], []])
+        forms = self.ru_predictor.predict_sentences([["косил", "косой", "косой", "косой"], []])
         self.assertEqual(forms[1], [])
         self.assertNotEqual(forms[0], [])
 
     def test_ru_proba(self):
-        forms = self.ru_predictor.predict_sentence_tags_proba(["косил", "косой", "косой", "косой"])
-        for word_proba in forms:
-            self.assertEqual(len(word_proba), 252)
-        indices = np.array([pair[0] for pair in forms[2]]).argsort()[-5:][::-1]
-        variants = [forms[2][i][1].tag for i in indices]
+        forms = self.ru_predictor.predict(["косил", "косой", "косой", "косой"], include_all_forms=True)
+        self.assertEqual(len(forms[0].possible_forms), 252)
+        indices = np.array([form.score for form in forms[2].possible_forms]).argsort()[-5:][::-1]
+        variants = [forms[2].possible_forms[i].tag for i in indices]
         self.assertIn('Case=Nom|Degree=Pos|Gender=Masc|Number=Sing', variants)
 
     def test_ru_genres_accuracy(self):

@@ -3,18 +3,21 @@
 # Описание: Генератор батчей с определёнными параметрами.
 
 from typing import List, Tuple
+from collections import namedtuple
 
-import pymorphy2
 import nltk
 import numpy as np
+from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
 
 from rnnmorph.data_preparation.word_vocabulary import WordVocabulary
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
 from rnnmorph.data_preparation.process_tag import convert_from_opencorpora_tag, process_gram_tag
-from rnnmorph.data_preparation.word_form import WordForm
 from rnnmorph.util.tqdm_open import tqdm_open
 from rnnmorph.config import TrainConfig, BuildModelConfig
+
+
+WordForm = namedtuple("WordForm", "text gram_vector_index")
 
 
 class BatchGenerator:
@@ -45,12 +48,8 @@ class BatchGenerator:
         # Подготовленные словари.
         self.grammeme_vectorizer_input = grammeme_vectorizer_input  # type: GrammemeVectorizer
         self.grammeme_vectorizer_output = grammeme_vectorizer_output  # type: GrammemeVectorizer
-        if self.language == "ru":
-            self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
-        else:
-            self.morph = None
-            nltk.download('averaged_perceptron_tagger')
-            nltk.download('universal_tagset')
+        self.morph = MorphAnalyzer() if self.language == "ru" else None  # type: MorphAnalyzer
+        self.converter = converters.converter('opencorpora-int', 'ud14') if self.language == "ru" else None
 
     def __to_tensor(self, sentences: List[List[WordForm]]) -> Tuple[List, List]:
         """
@@ -75,6 +74,7 @@ class BatchGenerator:
             word_indices, gram_vectors, char_vectors = self.get_sample(
                 [x.text for x in sentence],
                 language=self.language,
+                converter=self.converter,
                 morph=self.morph,
                 grammeme_vectorizer=self.grammeme_vectorizer_input,
                 max_word_len=self.build_config.char_max_word_length,
@@ -116,7 +116,8 @@ class BatchGenerator:
     @staticmethod
     def get_sample(sentence: List[str],
                    language: str,
-                   morph: pymorphy2.MorphAnalyzer,
+                   converter,
+                   morph: MorphAnalyzer,
                    grammeme_vectorizer: GrammemeVectorizer,
                    max_word_len: int,
                    word_vocabulary: WordVocabulary,
@@ -128,6 +129,7 @@ class BatchGenerator:
         :param language: язык.
         :param sentence: предложение.
         :param morph: морфология.
+        :param converter: конвертер тегов в UD.
         :param grammeme_vectorizer: грамматический словарь. 
         :param max_word_len: количество обрабатываемых букв в слове.
         :param word_vocabulary: список слов.
@@ -135,7 +137,6 @@ class BatchGenerator:
         :param char_set: список возможных символов, для которых есть эмбеддинги.
         :return: индексы слов, грамматические векторы, индексы символов.
         """
-        to_ud = converters.converter('opencorpora-int', 'ud14')
         word_char_vectors = []
         word_gram_vectors = []
         word_indices = []
@@ -157,7 +158,7 @@ class BatchGenerator:
             if language == "ru":
                 # Складываем все возможные варианты разбора поэлементно.
                 for parse in morph.parse(word):
-                    pos, gram = convert_from_opencorpora_tag(to_ud, parse.tag, word)
+                    pos, gram = convert_from_opencorpora_tag(converter, parse.tag, word)
                     gram = process_gram_tag(gram)
                     gram_value_indices += np.array(grammeme_vectorizer.get_vector(pos + "#" + gram))
             elif language == "en":
@@ -203,9 +204,8 @@ class BatchGenerator:
                         last_sentence = []
                         i += 1
                     else:
-                        word, lemma, pos, tags = line.split('\t')[0:4]
-                        word, lemma = word, lemma + '_' + pos
+                        word, _, pos, tags = line.split('\t')[0:4]
                         gram_vector_index = self.grammeme_vectorizer_output.get_index_by_name(pos + "#" + tags)
-                        last_sentence.append(WordForm(lemma, gram_vector_index, word))
+                        last_sentence.append(WordForm(text=word, gram_vector_index=gram_vector_index))
         for index, bucket in enumerate(self.buckets):
             yield self.__to_tensor(bucket)

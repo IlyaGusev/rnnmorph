@@ -61,7 +61,7 @@ sudo pip3 install rnnmorph
 ```
 from rnnmorph.predictor import RNNMorphPredictor
 predictor = RNNMorphPredictor(language="ru")
-forms = predictor.predict_sentence_tags(["мама", "мыла", "раму"])
+forms = predictor.predict(["мама", "мыла", "раму"])
 print(forms[0].pos)
 >>> NOUN
 print(forms[0].tag)
@@ -78,5 +78,6 @@ print(forms[0].vector)
 * [Дорожка по морфологическому анализу "Диалога-2017"](http://www.dialog-21.ru/evaluation/2017/morphology/)
 * [Материалы дорожки](https://github.com/dialogue-evaluation/morphoRuEval-2017)
 * [Morphine by kmike](https://github.com/kmike/morphine), [CRF classifier for MorphoRuEval-2017 by kmike](https://github.com/kmike/dialog2017)
+* [Universal Dependencies](http://universaldependencies.org/)
 * Tobias Horsmann and Torsten Zesch, 2017, [Do LSTMs really work so well for PoS tagging? – A replication study](http://www.ltl.uni-due.de/wp-content/uploads/horsmannZesch_emnlp2017.pdf)
 * Barbara Plank, Anders Søgaard, Yoav Goldberg, 2016, [Multilingual Part-of-Speech Tagging with Bidirectional Long Short-Term Memory Models and Auxiliary Loss](https://arxiv.org/abs/1604.05529)

@@ -26,7 +26,7 @@ def tag(predictor: RNNMorphPredictor, untagged_filename: str, tagged_filename: s
                 sentences.append([word for word in words])
                 words = []
     with open(tagged_filename, "w",  encoding='utf-8') as w:
-        all_forms = predictor.predict_sentences_tags(sentences)
+        all_forms = predictor.predict_sentences(sentences)
         for forms in all_forms:
             for i, form in enumerate(forms):
                 line = "{}\t{}\t{}\t{}\t{}\n".format(str(i + 1), form.word, form.normal_form, form.pos, form.tag)

@@ -4,8 +4,8 @@
 
 from typing import List
 
-import pymorphy2
 import nltk
+from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
 
 from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
@@ -24,12 +24,8 @@ class Loader(object):
         self.grammeme_vectorizer_output = GrammemeVectorizer()  # type: GrammemeVectorizer
         self.word_vocabulary = WordVocabulary()  # type: WordVocabulary
         self.char_set = set()
-        if self.language == "ru":
-            self.morph = pymorphy2.MorphAnalyzer()  # type: pymorphy2.MorphAnalyzer
-            self.converter = converters.converter('opencorpora-int', 'ud14')
-        else:
-            nltk.download('averaged_perceptron_tagger')
-            nltk.download('universal_tagset')
+        self.morph = MorphAnalyzer() if self.language == "ru" else None  # type: MorphAnalyzer
+        self.converter = converters.converter('opencorpora-int', 'ud14') if self.language == "ru" else None
 
     def parse_corpora(self, file_names: List[str]):
         """

@@ -1,64 +1,38 @@
 # -*- coding: utf-8 -*-
-# Авторы: Гусев Илья, Анастасьев Даниил
+# Авторы: Гусев Илья
 # Описание: Словоформа.
 
-from enum import IntEnum
-from collections import namedtuple
-
-from rnnmorph.data_preparation.grammeme_vectorizer import GrammemeVectorizer
-
-WordFormOut = namedtuple("WordFormOut", "word pos tag normal_form vector")
+import numpy as np
 
 
-class LemmaCase(IntEnum):
-    """
-    Тип капитализации словоформы
-    """
-    NORMAL_CASE = 1  # Может писаться как с большой буквы, так и с маленькой
-    PROPER_CASE = 2  # Может писаться только с большой буквы
-    UPPER_CASE = 3  # Может писаться только всеми большими
-
-
-class WordForm(object):
+class WordFormOut(object):
     """
     Класс словоформы.
     """
-    def __init__(self, lemma: str, gram_vector_index: int, text: str, case: LemmaCase=LemmaCase.NORMAL_CASE):
+    def __init__(self, word: str, normal_form: str, pos: str, tag: str, vector: np.array, score: float):
         """
-        :param lemma: лемма словоформы (=начальная форма, нормальная форма).
-        :param gram_vector_index: индекс грамматического вектора.
-        :param text: вокабула словоформы.
+        :param word: вокабула словоформы.
+        :param normal_form: лемма словоформы (=начальная форма, нормальная форма).
+        :param pos: часть речи.
+        :param tag: грамматическое значение.
+        :param vector: вектор словоформы.
+        :param score: вероятность словоформы.
         """
-        self.lemma = lemma  # type: str
-        self.gram_vector_index = gram_vector_index  # type: int
-        self.text = text  # type: str
-        self.case = case  # type: LemmaCase
-
-    def set_case(self, case: LemmaCase) -> None:
-        self.case = case
-
-    def get_text_with_case(self) -> str:
-        if self.case == LemmaCase.NORMAL_CASE:
-            return self.text
-        if self.case == LemmaCase.PROPER_CASE:
-            return self.text.capitalize()
-        if self.case == LemmaCase.UPPER_CASE:
-            return self.text.upper()
-
-    def get_out_form(self, vectorizer: GrammemeVectorizer) -> WordFormOut:
-        full_tag = vectorizer.get_name_by_index(self.gram_vector_index)
-        pos = full_tag.split("#")[0]
-        gram = full_tag.split("#")[1]
-        vector = vectorizer.get_vector(full_tag)
-        return WordFormOut(word=self.text, pos=pos, tag=gram, normal_form=self.lemma, vector=vector)
+        self.word = word
+        self.normal_form = normal_form
+        self.pos = pos
+        self.tag = tag
+        self.vector = vector
+        self.score = score
+        self.weighted_vector = np.zeros_like(self.vector)
+        self.possible_forms = []
 
     def __repr__(self):
-        return "<Lemma = {}; GrTag = {}; WordForm = {}; LemmaCase = {}>".format(self.lemma,
-            self.gram_vector_index, self.text, self.case)
+        return "<Normal form = {}; Word = {}>".format(self.normal_form, self.word)
 
     def __eq__(self, other):
-        return (self.lemma, self.gram_vector_index, self.text) == \
-               (other.lemma, other.gram_vector_index, other.text)
+        return (self.normal_form, self.word, self.pos, self.tag) == \
+               (other.normal_form, other.word, other.pos, other.tag)
 
     def __hash__(self):
-        return hash((self.lemma, self.gram_vector_index, self.text))
+        return hash((self.normal_form, self.word, self.pos, self.tag))
