@@ -21,9 +21,8 @@ Morphological analyzer (POS tagger) for Russian and English languages based on n
 | UD EWT test  | 91.57%   | 94.10%  | 87.02%       | 63.17%       | 50.99%          |
 
 ### Speed and memory consumption
-Скорость: от 200 до 600 слов в секунду на CPU, на GPU в несколько раз быстрее.
-
-Потребление оперативной памяти: зависит от режима работы, для предсказания одиночных предложений - 500-600 Мб, для режима с батчами - пропорционально размеру батча.
+Speed: from 200 to 600 words per second using CPU. 
+Memory consumption: about 500-600 MB for single-sentence predictions
 
 ### Install ###
 ```
