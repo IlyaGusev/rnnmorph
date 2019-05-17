@@ -22,6 +22,7 @@ Morphological analyzer (POS tagger) for Russian and English languages based on n
 
 ### Speed and memory consumption
 Speed: from 200 to 600 words per second using CPU. 
+
 Memory consumption: about 500-600 MB for single-sentence predictions
 
 ### Install ###
