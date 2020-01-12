@@ -172,7 +172,7 @@ class BatchGenerator:
             for category, values in sorted_grammemes:
                 mask = gram_value_indices[index:index + len(values)]
                 s = sum(mask)
-                gram_value_indices[index:index + len(values)] = mask / s
+                gram_value_indices[index:index + len(values)] = mask / s if s != 0 else 0.0
                 index += len(values)
             word_gram_vectors.append(gram_value_indices)
 

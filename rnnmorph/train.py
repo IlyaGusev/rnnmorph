@@ -49,6 +49,5 @@ def train(file_names: List[str], train_config_path: str, build_config_path: str,
         embeddings = None
         if embeddings_path is not None:
             embeddings = load_embeddings(embeddings_path, model.word_vocabulary, build_config.word_max_count)
-        print(embeddings.shape)
         model.build(build_config, embeddings)
     model.train(file_names, train_config, build_config)
