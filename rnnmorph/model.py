@@ -134,7 +134,8 @@ class LSTMMorphoAnalysis:
                 custom_objects = {'ReversedLSTM': ReversedLSTM}
                 self.eval_model = model_from_yaml(f.read(), custom_objects=custom_objects)
         self.eval_model.load_weights(eval_model_weights_path)
-
+        self.eval_model._make_predict_function()
+        
     def build(self, config: BuildModelConfig, word_embeddings=None):
         """
         Описание модели.
