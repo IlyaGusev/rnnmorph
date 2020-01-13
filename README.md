@@ -47,7 +47,7 @@ print(forms[0].vector)
 
 ### Training ###
 Simple model training:
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Rh46pHS3FP8NHqdux1o2AF32U5xn1V5Js)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Rh46pHS3FP8NHqdux1o2AF32U5xn1V5J)
 
 ### Acknowledgements ###
 * Anastasyev D. G., Gusev I. O., Indenbom E. M., 2018, [Improving Part-of-speech Tagging Via Multi-task Learning and Character-level Word Representations](http://www.dialog-21.ru/media/4282/anastasyevdg.pdf)
