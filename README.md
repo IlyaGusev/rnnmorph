@@ -27,7 +27,7 @@ Memory consumption: about 500-600 MB for single-sentence predictions
 
 ### Install ###
 ```
-sudo pip3 install rnnmorph
+pip install rnnmorph
 ```
   
 ### Usage ###
