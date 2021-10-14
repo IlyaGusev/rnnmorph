@@ -15,11 +15,11 @@ setup(
         'rnnmorph': ['models/ru/*', 'models/en/*']
     },
     install_requires=[
-        'numpy>=1.11.3',
-        'scipy>=0.18.1',
+        'numpy>=1.12.1',
+        'scipy>=0.19.0',
         'scikit-learn>=0.18.1',
-        'tensorflow>=1.1.0',
-        'keras>=2.0.6',
+        'keras>=2.1.4',
+        'h5py>=2.7.0',
         'pymorphy2>=0.8',
         'russian-tagsets==0.6',
         'tqdm>=4.14.0',
