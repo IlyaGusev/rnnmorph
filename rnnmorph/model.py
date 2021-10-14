@@ -10,8 +10,11 @@ from pymorphy2 import MorphAnalyzer
 from russian_tagsets import converters
 from keras.layers import Input, Embedding, Dense, LSTM, BatchNormalization, Activation, \
     concatenate, Bidirectional, TimeDistributed, Dropout
-from keras.models import Model, model_from_yaml
-from keras.optimizers import Adam
+from keras.models import Model, model_from_json
+try:
+    from keras.optimizers import Adam
+except:
+    from keras.optimizer_v2.adam import Adam
 from keras import backend as K
 
 from rnnmorph.batch_generator import BatchGenerator
@@ -80,11 +83,11 @@ class LSTMMorphoAnalysis:
              eval_model_config_path: str, eval_model_weights_path: str):
         if self.eval_model is not None:
             with open(eval_model_config_path, "w", encoding='utf-8') as f:
-                f.write(self.eval_model.to_yaml())
+                f.write(self.eval_model.to_json())
             self.eval_model.save_weights(eval_model_weights_path)
         if self.train_model is not None:
             with open(model_config_path, "w", encoding='utf-8') as f:
-                f.write(self.train_model.to_yaml())
+                f.write(self.train_model.to_json())
             self.train_model.save_weights(model_weights_path)
 
     def load_train(self, config: BuildModelConfig, model_config_path: str=None, model_weights_path: str=None):
@@ -92,10 +95,10 @@ class LSTMMorphoAnalysis:
             if config.use_crf:
                 from keras_contrib.layers import CRF
                 custom_objects = {'ReversedLSTM': ReversedLSTM, 'CRF': CRF}
-                self.train_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+                self.train_model = model_from_json(f.read(), custom_objects=custom_objects)
             else:
                 custom_objects = {'ReversedLSTM': ReversedLSTM}
-                self.train_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+                self.train_model = model_from_json(f.read(), custom_objects=custom_objects)
         self.train_model.load_weights(model_weights_path)
 
         loss = {}
@@ -129,12 +132,11 @@ class LSTMMorphoAnalysis:
             if config.use_crf:
                 from keras_contrib.layers import CRF
                 custom_objects = {'ReversedLSTM': ReversedLSTM, 'CRF': CRF}
-                self.eval_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+                self.eval_model = model_from_json(f.read(), custom_objects=custom_objects)
             else:
                 custom_objects = {'ReversedLSTM': ReversedLSTM}
-                self.eval_model = model_from_yaml(f.read(), custom_objects=custom_objects)
+                self.eval_model = model_from_json(f.read(), custom_objects=custom_objects)
         self.eval_model.load_weights(eval_model_weights_path)
-        self.eval_model._make_predict_function()
         
     def build(self, config: BuildModelConfig, word_embeddings=None):
         """

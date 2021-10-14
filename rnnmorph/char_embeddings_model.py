@@ -8,8 +8,11 @@ from typing import Tuple
 
 import numpy as np
 from keras.layers import Input, Embedding, Dense, Dropout, Reshape, TimeDistributed
-from keras.models import Model, model_from_yaml
-from keras.optimizers import Adam
+from keras.models import Model, model_from_json
+try:
+    from keras.optimizers import Adam
+except:
+    from keras.optimizer_v2.adam import Adam
 from keras.callbacks import EarlyStopping
 from keras import backend as K
 
@@ -46,12 +49,12 @@ class CharEmbeddingsModel:
 
     def save(self, model_config_path: str, model_weights_path: str):
         with open(model_config_path, "w", encoding='utf-8') as f:
-            f.write(self.model.to_yaml())
+            f.write(self.model.to_json())
         self.model.save_weights(model_weights_path)
 
     def load(self, model_config_path: str, model_weights_path: str) -> None:
         with open(model_config_path, "r", encoding='utf-8') as f:
-            self.model = model_from_yaml(f.read())
+            self.model = model_from_json(f.read())
         self.model.load_weights(model_weights_path)
         self.char_layer = TimeDistributed(Model(self.model.input_layers[0].output, self.model.layers[-2].input))
 
