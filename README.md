@@ -31,6 +31,9 @@ sudo pip3 install rnnmorph
 ```
   
 ### Usage ###
+
+Example: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1OowDoBnucMAdTh6cGuMt06BmFqGTCSvK)
+
 ```
 from rnnmorph.predictor import RNNMorphPredictor
 predictor = RNNMorphPredictor(language="ru")
