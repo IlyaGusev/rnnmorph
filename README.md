@@ -6,6 +6,10 @@
 
 Morphological analyzer (POS tagger) for Russian and English languages based on neural networks and dictionary-lookup systems (pymorphy2, nltk).
 
+### Contacts
+
+* Telegram: [@YallenGusev](https://t.me/YallenGusev)
+
 ### Russian language, MorphoRuEval-2017 test dataset, accuracy
 
 | Domain       | Full tag | PoS tag | F.t. + lemma | Sentence f.t.| Sentence f.t.l. |
