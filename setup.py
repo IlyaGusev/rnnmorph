@@ -3,13 +3,13 @@ from setuptools import find_packages, setup
 setup(
     name='rnnmorph',
     packages=find_packages(),
-    version='0.4.0',
+    version='0.4.1',
     description='RNNMorph: neural network disambiguation of pymorphy2 parses for precise '
                 'POS-tagging in Russian language.',
     author='Ilya Gusev',
     author_email='phoenixilya@gmail.com',
     url='https://github.com/IlyaGusev/rnnmorph',
-    download_url='https://github.com/IlyaGusev/rnnmorph/archive/0.4.0.tar.gz',
+    download_url='https://github.com/IlyaGusev/rnnmorph/archive/0.4.1.tar.gz',
     keywords=['nlp', 'russian', 'lstm', 'morphology'],
     package_data={
         'rnnmorph': ['models/ru/*', 'models/en/*']
@@ -38,5 +38,8 @@ setup(
 
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9'
     ],
 )
