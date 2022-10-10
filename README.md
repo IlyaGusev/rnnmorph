@@ -4,6 +4,8 @@
 [![Tests Status](https://github.com/IlyaGusev/rnnmorph/actions/workflows/python-package.yml/badge.svg)](https://github.com/IlyaGusev/rnnmorph/actions/workflows/python-package.yml)
 [![Code Climate](https://codeclimate.com/github/IlyaGusev/rnnmorph/badges/gpa.svg)](https://codeclimate.com/github/IlyaGusev/rnnmorph)
 
+**Important**: please see https://github.com/natasha/slovnet#morphology-1
+
 Morphological analyzer (POS tagger) for Russian and English languages based on neural networks and dictionary-lookup systems (pymorphy2, nltk).
 
 ### Contacts
