@@ -378,7 +378,7 @@ class LSTMMorphoAnalysis:
 
         words = np.zeros((n_samples, max_sentence_len), dtype=np.int)
         grammemes = np.zeros((n_samples, max_sentence_len, self.grammeme_vectorizer_input.grammemes_count()),
-                             dtype=np.float)
+                             dtype=float)
         chars = np.zeros((n_samples, max_sentence_len, build_config.char_max_word_length), dtype=np.int)
 
         for i, sentence in enumerate(sentences):
